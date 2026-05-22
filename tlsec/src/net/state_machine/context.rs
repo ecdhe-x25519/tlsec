@@ -6,7 +6,7 @@ use crate::messages::handshake::handshake::server::ServerHelloPayload;
 
 use crate::net::state_machine::configs::ClientAuthMode;
 
-use crate::encryption::cipher_suite::SupportedCipherSuite;
+use crate::supported::cipher::SupportedCipherSuite;
 
 use super::state::CommonState;
 

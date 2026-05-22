@@ -4,6 +4,8 @@ use super::Error;
 use super::cipher_suite::*;
 use super::transcript::TranscriptHash;
 
+use crate::supported::cipher::SupportedCipherSuite;
+
 fn hkdf_expand_label(
     prk: &Prk, 
     label: &[u8], 

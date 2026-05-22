@@ -6,14 +6,14 @@ use webpki::{TlsClientTrustAnchors, TlsServerTrustAnchors, TrustAnchor, Time, Dn
 
 use bytes::BytesMut;
 
-use signature::SupportedSchemes;
+use crate::supported::signature::SupportedScheme;
 
 use super::*;
 
 pub fn parse_entry_client(
     anchor: Der,
     cert_list: CertificatePayload,
-    algos: &[SupportedSchemes],
+    algos: &[SupportedScheme],
     server_name: &str,
 ) -> Result<(), Error> {
     let certificate: &BytesMut = &cert_list.certificate_list[0].certificate_data;
@@ -29,7 +29,7 @@ pub fn parse_entry_client(
 
     let supported_algos: Vec<&SignatureAlgorithm> = algos[0..]
         .iter()
-        .map(|algo: &SupportedSchemes| algo.to_algo())
+        .map(|algo: &SupportedScheme| algo.to_algo())
         .collect();
 
     let trust_anchor: TrustAnchor<'_> = TrustAnchor::try_from_cert_der(&anchor.0)
@@ -57,7 +57,7 @@ pub fn parse_entry_client(
 pub fn parse_entry_server(
     anchor: Der,
     cert_list: CertificatePayload,
-    algos: &[SupportedSchemes],
+    algos: &[SupportedScheme],
 ) -> Result<(), Error> {
     let certificate: &BytesMut = &cert_list.certificate_list[0].certificate_data;
     let intermediates: Vec<&[u8]> = cert_list.certificate_list[1..]
@@ -72,7 +72,7 @@ pub fn parse_entry_server(
 
     let supported_algos: Vec<&SignatureAlgorithm> = algos[0..]
         .iter()
-        .map(|algo: &SupportedSchemes| algo.to_algo())
+        .map(|algo: &SupportedScheme| algo.to_algo())
         .collect();
 
     let trust_anchor: TrustAnchor<'_> = TrustAnchor::try_from_cert_der(&anchor.0)

@@ -3,13 +3,14 @@ use crate::encryption::transcript::TranscriptHash;
 
 use crate::messages::handshake::extensions::AlpnProtocols;
 use crate::messages::handshake::handshake::HandshakeMessage;
+use crate::supported::named_group::SupportedNamedGroup;
 
 use super::context::Context;
 use super::record_layer::RecordLayer;
 
-use ring::digest::SHA256;
+use crate::supported::cipher::SupportedCipherSuite;
 
-use crate::encryption::cipher_suite::SupportedCipherSuite;
+use ring::digest::SHA256;
 
 use super::*;
 
@@ -20,6 +21,8 @@ pub struct CommonState {
     pub handshake_keys: Option<HandshakeKeys>,
     pub application_keys: Option<ApplicationKeys>,
     pub alpn_protocol: Option<AlpnProtocols>,
+    pub named_group: Option<SupportedNamedGroup>,
+    pub pbk: Option<BytesMut>,
     pub error: Option<Error>,
     pub handshake_complete: bool,
     pub closed: bool,
@@ -34,20 +37,22 @@ impl CommonState {
             handshake_keys: None,
             application_keys: None,
             alpn_protocol: None,
+            named_group: None,
+            pbk: None,
             error: None,
             handshake_complete: false,
             closed: false,
         }
     }
-    
+
     pub fn is_handshake_complete(&self) -> bool {
         self.handshake_complete
     }
-    
+
     pub fn set_handshake_complete(&mut self) {
         self.handshake_complete = true;
     }
-    
+
     pub fn set_error(&mut self, err: Error) {
         self.error = Some(err);
         self.closed = true;

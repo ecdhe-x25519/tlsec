@@ -6,7 +6,6 @@ use super::super::*;
 pub enum ServerExtensionType {
     KeyShare = 0x0033,
     SupportedVersions = 0x002B,
-    KeyShareHelloRetryRequest,
     RenegotiationInfo = 0xFF01,
     ALPN = 0x0010,
 }
@@ -49,7 +48,6 @@ impl ServerExtensionPayload {
             ServerExtensionType::KeyShare => Ok(Self::KeyShareServer(KeyShareServer::decode(buf)?)),
             ServerExtensionType::SupportedVersions => Ok(Self::SupportedVersionsServer(SupportedVersionsServer::decode(buf)?)),
             ServerExtensionType::RenegotiationInfo => Ok(Self::RenegotiationInfo),
-            ServerExtensionType::KeyShareHelloRetryRequest => Ok(Self::KeyShareHelloRetryRequest(KeyShareHelloRetryRequest::decode(buf)?)),
             ServerExtensionType::ALPN => Ok(Self::ALPN(AlpnPayload::decode(buf)?))
         }
     }

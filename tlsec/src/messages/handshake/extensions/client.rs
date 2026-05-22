@@ -383,7 +383,7 @@ pub struct PskKeyExchangeModesPayload {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PskKeyExchangeMode {
     PskKe = 0x00,
     PskDheKe = 0x01,

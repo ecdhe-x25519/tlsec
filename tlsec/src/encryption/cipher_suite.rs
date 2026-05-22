@@ -9,10 +9,6 @@ use ring::aead::{
     UnboundKey,
 };
 
-use ring::hkdf::{self, HKDF_SHA256, HKDF_SHA384};
-use ring::agreement::{self, ECDH_P256, ECDH_P384, X25519};
-use ring::digest::{self, SHA256, SHA384};
-
 use bytes::BytesMut;
 
 use super::Error;
@@ -151,83 +147,4 @@ pub struct HandshakeKeys {
 pub struct ApplicationKeys {
     pub client: AnyCipher,
     pub server: AnyCipher,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SupportedCipherSuite {
-    ChaCha20,
-    Aes128,
-    Aes256,
-}
-
-impl SupportedCipherSuite {
-    pub fn key_len(&self) -> usize {
-        match self {
-            Self::ChaCha20 => 32,
-            Self::Aes128 => 16,
-            Self::Aes256 => 32,
-        }
-    }
-
-    pub fn iv_len(&self) -> usize { 12 }
-
-    pub fn hash_algorithm(&self) -> &'static digest::Algorithm {
-        match self {
-            Self::ChaCha20 => &SHA256,
-            Self::Aes128 => &SHA256,
-            Self::Aes256 => &SHA384,
-        }
-    }
-
-    pub fn hash_len(&self) -> usize {
-        match self {
-            Self::ChaCha20 => 32,
-            Self::Aes128 => 32,
-            Self::Aes256 => 48,
-        }
-    }
-
-    pub fn hkdf_algorithm(&self) -> hkdf::Algorithm {
-        match self {
-            Self::ChaCha20 => HKDF_SHA256,
-            Self::Aes128 => HKDF_SHA256,
-            Self::Aes256 => HKDF_SHA384,
-        }
-    }
-
-    pub fn create_cipher(&self, key: Vec<u8>, iv: Vec<u8>) -> Result<AnyCipher, Error> {
-        match self {
-            Self::ChaCha20 => {
-                let key_arr: [u8; 32] = key.try_into().map_err(|_| Error::Crypto("invalid key length".to_string()))?;
-                let iv_arr: [u8; 12] = iv.try_into().map_err(|_| Error::Crypto("invalid iv length".to_string()))?;
-                Ok(AnyCipher::ChaCha20(TlsCipher::new(key_arr, iv_arr)))
-            }
-            Self::Aes128 => {
-                let key_arr: [u8; 16] = key.try_into().map_err(|_| Error::Crypto("invalid key length".to_string()))?;
-                let iv_arr: [u8; 12] = iv.try_into().map_err(|_| Error::Crypto("invalid iv length".to_string()))?;
-                Ok(AnyCipher::Aes128(TlsCipher::new(key_arr, iv_arr)))
-            }
-            Self::Aes256 => {
-                let key_arr: [u8; 32] = key.try_into().map_err(|_| Error::Crypto("invalid key length".to_string()))?;
-                let iv_arr: [u8; 12] = iv.try_into().map_err(|_| Error::Crypto("invalid iv length".to_string()))?;
-                Ok(AnyCipher::Aes256(TlsCipher::new(key_arr, iv_arr)))
-            }
-        }
-    }
-}
-
-pub enum SupportedCurves {
-    X25519,
-    Secp256R1,
-    Secp384R1,
-}
-
-impl SupportedCurves {
-    pub fn to_curve(self) -> &'static agreement::Algorithm {
-        match self {
-            Self::X25519 => &X25519,
-            Self::Secp256R1 => &ECDH_P256,
-            Self::Secp384R1 => &ECDH_P384,
-        }
-    }
 }

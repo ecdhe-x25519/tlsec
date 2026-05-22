@@ -18,7 +18,7 @@ impl State<ClientSide> for ClientStart {
         msg: HandshakeMessage,
     ) -> Result<NextState<ClientSide>, Error>
     {
-        Ok(NextState::new(ExpectServerHello, None))
+        Ok(NextState::new(ExpectServerHello { client_hello: None }, None))
     }
 }
 

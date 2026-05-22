@@ -1,6 +1,5 @@
 pub mod parse;
 pub mod verify;
-pub mod signature;
 
 pub use crate::error::Error;
 

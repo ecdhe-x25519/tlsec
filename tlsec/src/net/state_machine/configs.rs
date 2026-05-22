@@ -1,13 +1,21 @@
-use crate::messages::Version;
-use crate::messages::handshake::{CipherSuite, NamedGroup, SignatureScheme};
+use crate::messages::handshake::extensions::client::PskKeyExchangeMode;
 use crate::messages::handshake::handshake::client::ClientHelloPayload;
 use crate::messages::handshake::handshake::server::ServerHelloPayload;
 
+use crate::supported::cipher::SupportedCipherSuite;
+use crate::supported::compression_algorithm::SupportedCompressionAlgorithm;
+use crate::supported::ec_point_format::SupportedEcPointFormat;
+use crate::supported::named_group::SupportedNamedGroup;
+use crate::supported::signature::SupportedScheme;
+use crate::supported::version::SupportedVersion;
+
 pub struct CommonConfig {
-    pub supported_version: Version,
-    pub supported_cipher_suites: Vec<CipherSuite>,
-    pub supported_named_groups: NamedGroup,
-    pub supported_signature_scheme: SignatureScheme,
+    pub supported_versions: Vec<SupportedVersion>,
+    pub supported_cipher_suites: Vec<SupportedCipherSuite>,
+    pub supported_named_groups: Vec<SupportedNamedGroup>,
+    pub supported_signature_schemes: Vec<SupportedScheme>,
+    pub supported_compression_algorithms: Vec<SupportedCompressionAlgorithm>,
+    pub supported_formats: Vec<SupportedEcPointFormat>
 }
 
 pub struct ClientConfig {
@@ -24,6 +32,7 @@ pub struct ServerConfig {
     pub server_name: Option<String>,
     pub cert_path: Option<String>,
     pub psk_id_path: Option<String>,
+    pub psk_ke_mode: Option<PskKeyExchangeMode>,
 }
 
 pub enum ClientAuthMode {

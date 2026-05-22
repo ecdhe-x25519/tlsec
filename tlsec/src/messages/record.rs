@@ -119,23 +119,115 @@ impl RecordPayload {
 }
 
 pub struct AlertPayload {
-    pub level: u8,
-    pub description: u8,
+    pub level: AlertLevel,
+    pub description: AlertDescription,
 }
 
 impl Serialize for AlertPayload {
     fn encode(&self, buf: &mut BytesMut) {
-        buf.put_u8(self.level);
-        buf.put_u8(self.description);
+        buf.put_u8(self.level as u8);
+        buf.put_u8(self.description as u8);
     }
 
     fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
         if buf.remaining() < 2 {
             return Err(Error::Incomplete(2 - buf.remaining()));
         }
+        
+        let level: AlertLevel = AlertLevel::try_from(buf.get_u8())?;
+        let description: AlertDescription = AlertDescription::try_from(buf.get_u8())?;
+        
         Ok(AlertPayload {
-            level: buf.get_u8(),
-            description: buf.get_u8(),
+            level,
+            description,
         })
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AlertLevel {
+    Warning = 1,
+    Fatal = 2,
+}
+
+impl TryFrom<u8> for AlertLevel {
+    type Error = Error;
+    
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(AlertLevel::Warning),
+            2 => Ok(AlertLevel::Fatal),
+            _ => Err(Error::UnknownAlertLevel),
+        }
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AlertDescription {
+    CloseNotify = 0,
+    UnexpectedMessage = 10,
+    BadRecordMac = 20,
+    RecordOverflow = 22,
+    HandshakeFailure = 40,
+    BadCertificate = 42,
+    UnsupportedCertificate = 43,
+    CertificateRevoked = 44,
+    CertificateExpired = 45,
+    CertificateUnknown = 46,
+    IllegalParameter = 47,
+    UnknownCa = 48,
+    AccessDenied = 49,
+    DecodeError = 50,
+    DecryptError = 51,
+    ProtocolVersion = 70,
+    InsufficientSecurity = 71,
+    InternalError = 80,
+    InappropriateFallback = 86,
+    UserCanceled = 90,
+    MissingExtension = 109,
+    UnsupportedExtension = 110,
+    UnrecognizedName = 112,
+    BadCertificateStatusResponse = 113,
+    UnknownPskIdentity = 115,
+    CertificateRequired = 116,
+    NoApplicationProtocol = 120,
+}
+
+impl TryFrom<u8> for AlertDescription {
+    type Error = Error;
+    
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(AlertDescription::CloseNotify),
+            10 => Ok(AlertDescription::UnexpectedMessage),
+            20 => Ok(AlertDescription::BadRecordMac),
+            22 => Ok(AlertDescription::RecordOverflow),
+            40 => Ok(AlertDescription::HandshakeFailure),
+            42 => Ok(AlertDescription::BadCertificate),
+            43 => Ok(AlertDescription::UnsupportedCertificate),
+            44 => Ok(AlertDescription::CertificateRevoked),
+            45 => Ok(AlertDescription::CertificateExpired),
+            46 => Ok(AlertDescription::CertificateUnknown),
+            47 => Ok(AlertDescription::IllegalParameter),
+            48 => Ok(AlertDescription::UnknownCa),
+            49 => Ok(AlertDescription::AccessDenied),
+            50 => Ok(AlertDescription::DecodeError),
+            51 => Ok(AlertDescription::DecryptError),
+            70 => Ok(AlertDescription::ProtocolVersion),
+            71 => Ok(AlertDescription::InsufficientSecurity),
+            80 => Ok(AlertDescription::InternalError),
+            86 => Ok(AlertDescription::InappropriateFallback),
+            90 => Ok(AlertDescription::UserCanceled),
+            109 => Ok(AlertDescription::MissingExtension),
+            110 => Ok(AlertDescription::UnsupportedExtension),
+            112 => Ok(AlertDescription::UnrecognizedName),
+            113 => Ok(AlertDescription::BadCertificateStatusResponse),
+            115 => Ok(AlertDescription::UnknownPskIdentity),
+            116 => Ok(AlertDescription::CertificateRequired),
+            120 => Ok(AlertDescription::NoApplicationProtocol),
+            _ => Err(Error::UnknownAlertDescription),
+        }
     }
 }

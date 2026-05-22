@@ -2,7 +2,7 @@ pub mod client;
 pub mod server;
 pub mod certificate;
 
-use crate::encryption::cipher_suite::SupportedCipherSuite;
+use crate::supported::cipher::SupportedCipherSuite;
 
 use super::*;
 use super::super::*;

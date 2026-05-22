@@ -1,9 +1,13 @@
 use ring::agreement::{EphemeralPrivateKey, PublicKey, UnparsedPublicKey, Algorithm, agree_ephemeral};
 
+use crate::supported::named_group::SupportedNamedGroup;
+
 use super::*;
 
-pub fn generate_key_pair(random: Random, algo: &'static Algorithm) -> Result<(EphemeralPrivateKey, PublicKey), Error> {
-    let private_key: EphemeralPrivateKey = EphemeralPrivateKey::generate(algo, &random.0)
+pub fn generate_key_pair(random: Random, algo: SupportedNamedGroup) -> Result<(EphemeralPrivateKey, PublicKey), Error> {
+    let ng = algo.to_curve();
+
+    let private_key: EphemeralPrivateKey = EphemeralPrivateKey::generate(ng, &random.0)
         .map_err(|e| Error::Crypto(format!("private key generation error: {e}")))?;
 
     let public_key: PublicKey = private_key.compute_public_key()
