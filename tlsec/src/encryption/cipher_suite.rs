@@ -138,13 +138,3 @@ impl AnyCipher {
         }
     }
 }
-
-pub struct HandshakeKeys {
-    pub client: AnyCipher,
-    pub server: AnyCipher,
-}
-
-pub struct ApplicationKeys {
-    pub client: AnyCipher,
-    pub server: AnyCipher,
-}

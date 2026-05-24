@@ -1,7 +1,9 @@
 use super::*;
 use super::extensions::*;
 
-use certificate::*;
+use crate::messages::handshake::certificate::*;
+
+use record::AlertDescription;
 
 const HRR_RANDOM: [u8; 32] = [
     0xCF, 0x21, 0xAD, 0x74, 0xE5, 0x9A, 0x61, 0x11,
@@ -42,7 +44,7 @@ impl TryFrom<u8> for ServerHandshakeType {
             0x0B => Ok(ServerHandshakeType::Certificate),
             0x0D => Ok(ServerHandshakeType::CertificateRequest),
             0x0F => Ok(ServerHandshakeType::CertificateVerify),
-            _ => Err(Error::UnsupportedHandshakeType),
+            _ => Err(Error::Unknown("handshake type")),
         }
     }
 }
@@ -70,7 +72,7 @@ impl ServerHandshakePayload {
             ServerHandshakeType::EncryptedExtensions => Ok(Self::EncryptedExtensions(EncryptedExtensionsPayload::decode(buf)?)),
             ServerHandshakeType::Certificate => Ok(Self::Certificate(CertificatePayload::decode(buf)?)),
             ServerHandshakeType::CertificateVerify => Ok(Self::CertificateVerify(CertificateVerifyPayload::decode(buf)?)),
-            _ => Err(Error::UnsupportedHandshakeType),
+            _ => Err(Error::Unknown("handshake type")),
         }
     }
 }
@@ -126,7 +128,7 @@ impl Serialize for ServerHelloPayload {
         let legacy_session_id_echo_length: usize = buf.get_u8() as usize;
 
         if legacy_session_id_echo_length > 32 {
-            return Err(Error::Handshake("invalid session id length"));
+            return Err(Error::Alert(AlertDescription::HandshakeFailure));
         }
         if buf.remaining() < legacy_session_id_echo_length {
             return Err(Error::Incomplete(legacy_session_id_echo_length - buf.remaining()));

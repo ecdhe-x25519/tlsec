@@ -1,47 +1,17 @@
 use std::fmt;
 
+use crate::messages::record::{AlertDescription, AlertPayload, Record};
+use crate::messages::record::RecordType::Alert;
+use crate::messages::record::RecordPayload;
+use crate::messages::Version::Tls12;
+use crate::messages::record::AlertLevel::Fatal;
+
 #[derive(Debug)]
 pub enum Error {
-    UnknownCipherSuite,
-    UnknownVersion,
-    UnknownExtension,
-    UnknownGroup,
-    UnknownNamedGroup,
-    UnknownCompressionMethod,
-    UnknownSignatureScheme,
-    UnknownEcPointFormat,
-    UnknownCompressionAlgorithm,
-    UnknownNameType,
-    UnknownALPN,
-    UnknownRecordType,
-    UnknownHandshakeType,
-    UnknownStatusType,
-    UnknownPskKeMode,
-    UnsupportedCipherSuite,
-    UnsupportedVersion,
-    UnsupportedExtension,
-    UnsupportedGroup,
-    UnsupportedNamedGroup,
-    UnsupportedCompressionMethod,
-    UnsupportedSignatureScheme,
-    UnsupportedEcPointFormat,
-    UnsupportedCompressionAlgorithm,
-    UnsupportedNameType,
-    UnsupportedALPN,
-    UnsupportedRecordType,
-    UnsupportedHandshakeType,
-    UnsupportedStatusType,
-    UnsupportedPskKeMode,
-    UnexpectedMessage,
-    AlertReceived,
-    UnknownMessage,
-    UnknownAlertLevel,
-    UnknownAlertDescription,
-    InvalidCertificate,
-    MissingExtension,
-    IncorrectServerName,
+    Unknown(&'static str),
+    Unsupported(&'static str),
+    Alert(AlertDescription),
     Incomplete(usize),
-    Handshake(&'static str),
     Crypto(String),
     Io(String),
 }
@@ -49,50 +19,56 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::UnknownCipherSuite => write!(f, "Unknown cipher suite"),
-            Error::UnknownVersion => write!(f, "Unknown version"),
-            Error::UnknownExtension => write!(f, "Unknown extension"),
-            Error::UnknownGroup => write!(f, "Unknown group"),
-            Error::UnknownNamedGroup => write!(f, "Unknown named group"),
-            Error::UnknownCompressionMethod => write!(f, "Unknown compression method"),
-            Error::UnknownSignatureScheme => write!(f, "Unknown signature scheme"),
-            Error::UnknownEcPointFormat => write!(f, "Unknown EC point format"),
-            Error::UnknownCompressionAlgorithm => write!(f, "Unknown compression algorithm"),
-            Error::UnknownNameType => write!(f, "Unknown name type"),
-            Error::UnknownALPN => write!(f, "Unknown ALPN"),
-            Error::UnknownRecordType => write!(f, "Unknown record type"),
-            Error::UnknownHandshakeType => write!(f, "Unknown handshake type"),
-            Error::UnknownStatusType => write!(f, "Unknown status type"),
-            Error::UnknownPskKeMode => write!(f, "Unknown PSK key exchange mode"),
-            Error::UnsupportedCipherSuite => write!(f, "Unsupported cipher suite"),
-            Error::UnsupportedVersion => write!(f, "Unsupported TLS version"),
-            Error::UnsupportedExtension => write!(f, "Unsupported extension"),
-            Error::UnsupportedGroup => write!(f, "Unsupported named group"),
-            Error::UnsupportedNamedGroup => write!(f, "Unsupported named group"),
-            Error::UnsupportedCompressionMethod => write!(f, "Unsupported compression method"),
-            Error::UnsupportedSignatureScheme => write!(f, "Unsupported signature scheme"),
-            Error::UnsupportedEcPointFormat => write!(f, "Unsupported EC point format"),
-            Error::UnsupportedCompressionAlgorithm => write!(f, "Unsupported compression algorithm"),
-            Error::UnsupportedNameType => write!(f, "Unsupported name type"),
-            Error::UnsupportedALPN => write!(f, "Unsupported ALPN protocol"),
-            Error::UnsupportedRecordType => write!(f, "Unsupported record type"),
-            Error::UnsupportedHandshakeType => write!(f, "Unsupported handshake type"),
-            Error::UnsupportedStatusType => write!(f, "Unsupported status type"),
-            Error::UnsupportedPskKeMode => write!(f, "Unsupported PSK key exchange mode"),
-            Error::UnexpectedMessage => write!(f, "Unexpected message"),
-            Error::AlertReceived => write!(f, "Alert received"),
-            Error::UnknownMessage => write!(f, "Unknown message"),
-            Error::UnknownAlertLevel => write!(f, "Unknown alert level"),
-            Error::UnknownAlertDescription => write!(f, "Unknown alert description"),
-            Error::InvalidCertificate => write!(f, "Invalid certificate"),
-            Error::MissingExtension => write!(f, "Extension missing"),
-            Error::IncorrectServerName => write!(f, "Incorrect server name"),
-            Error::Incomplete(n) => write!(f, "Incomplete data: need {} more bytes", n),
-            Error::Crypto(msg) => write!(f, "Crypto error: {}", msg),
-            Error::Handshake(msg) => write!(f, "Handshake error: {}", msg),
-            Error::Io(msg) => write!(f, "IO error: {}", msg),
+            Self::Unknown(msg) => write!(f, "{}", msg),
+            Self::Unsupported(msg) => write!(f, "{}", msg),
+            Self::Alert(msg) => write!(f, "Alert received: {:?}", msg),
+            Self::Incomplete(msg) => write!(f, "Incomplete data: need {} more bytes", msg),
+            Self::Crypto(msg) => write!(f, "Crypto error: {}", msg),
+            Self::Io(msg) => write!(f, "IO error: {}", msg),
         }
     }
 }
 
 impl std::error::Error for Error {}
+
+impl Error {
+    pub fn handle_webpki(error: webpki::Error) -> AlertDescription {
+        match error {
+            webpki::Error::BadDer => AlertDescription::BadCertificate,
+            webpki::Error::BadDerTime => AlertDescription::BadCertificate,
+            webpki::Error::CaUsedAsEndEntity => AlertDescription::BadCertificate,
+            webpki::Error::CertExpired => AlertDescription::CertificateExpired,
+            webpki::Error::CertNotValidForName => AlertDescription::CertificateUnknown,
+            webpki::Error::CertNotValidYet => AlertDescription::BadCertificate,
+            webpki::Error::EndEntityUsedAsCa => AlertDescription::BadCertificate,
+            webpki::Error::ExtensionValueInvalid => AlertDescription::CertificateUnknown,
+            webpki::Error::InvalidCertValidity => AlertDescription::CertificateUnknown,
+            webpki::Error::InvalidSignatureForPublicKey => AlertDescription::CertificateUnknown,
+            webpki::Error::NameConstraintViolation => AlertDescription::CertificateUnknown,
+            webpki::Error::PathLenConstraintViolated => AlertDescription::CertificateUnknown,
+            webpki::Error::SignatureAlgorithmMismatch => AlertDescription::BadCertificate,
+            webpki::Error::RequiredEkuNotFound => AlertDescription::CertificateUnknown,
+            webpki::Error::UnknownIssuer => AlertDescription::UnknownCa,
+            webpki::Error::UnsupportedCertVersion => AlertDescription::UnsupportedCertificate,
+            webpki::Error::MissingOrMalformedExtensions => AlertDescription::CertificateUnknown,
+            webpki::Error::UnsupportedCriticalExtension => AlertDescription::UnsupportedCertificate,
+            webpki::Error::UnsupportedSignatureAlgorithmForPublicKey => AlertDescription::UnsupportedCertificate,
+            webpki::Error::UnsupportedSignatureAlgorithm => AlertDescription::UnsupportedCertificate,
+        }
+    }
+}
+
+pub fn build_alert(error: AlertDescription) -> Record {
+    let alert_message: AlertPayload = AlertPayload {
+        level: Fatal,
+        description: error,
+    };
+
+    let record: Record = Record {
+        record_type: Alert,
+        legacy_version: Tls12,
+        payload: RecordPayload::Alert(alert_message),
+    };
+
+    record
+}

@@ -1,5 +1,6 @@
 pub mod handshake;
 pub mod extensions;
+pub mod certificate;
 
 use crate::encryption::Random;
 
@@ -31,7 +32,7 @@ impl TryFrom<u16> for CipherSuite {
             _ => if is_grease_u16(value) {
                 Ok(CipherSuite::Grease)
             } else {
-                Err(Error::UnsupportedCipherSuite)
+                Err(Error::Unknown("cipher suite"))
             }
         }
     }
@@ -53,7 +54,7 @@ impl TryFrom<u8> for CompressionMethod {
             0 => Ok(Self::Null),
             1 => Ok(Self::DEFLATE),
             64 => Ok(Self::LZS),
-            _ => Err(Error::UnsupportedCompressionMethod)
+            _ => Err(Error::Unknown("compression method"))
         }
     }
 }
@@ -88,7 +89,7 @@ impl TryFrom<u16> for SignatureScheme {
             _ => if is_grease_u16(value) {
                 Ok(Self::Grease)
             } else {
-                Err(Error::UnsupportedSignatureScheme)
+                Err(Error::Unknown("signature scheme"))
             }
         }
     }
@@ -116,7 +117,7 @@ impl TryFrom<u16> for NamedGroup {
             _ => if is_grease_u16(value) {
                 Ok(Self::Grease)
             } else {
-                Err(Error::UnsupportedNamedGroup)
+                Err(Error::Unknown("named group"))
             }
         }
     }

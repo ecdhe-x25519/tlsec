@@ -1,3 +1,5 @@
+use crate::supported::cipher::SupportedCipherSuite;
+
 use super::handshake::handshake::HandshakeMessage;
 use super::*;
 
@@ -7,8 +9,8 @@ pub struct Record {
     pub payload: RecordPayload, // length = u16
 }
 
-impl Serialize for Record {
-    fn encode(&self, buf: &mut BytesMut) {
+impl Record {
+    pub fn encode(&self, buf: &mut BytesMut) {
         buf.put_u8(self.record_type as u8);
         buf.put_u16(self.legacy_version as u16);
 
@@ -21,7 +23,7 @@ impl Serialize for Record {
         buf[len_pos..len_pos+2].copy_from_slice(&len.to_be_bytes());
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    pub fn decode(buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, Error> {
         if buf.remaining() < 1 {
             return Err(Error::Incomplete(1 - buf.remaining()));
         }
@@ -45,7 +47,7 @@ impl Serialize for Record {
         }
 
         let mut payload_buf: BytesMut = buf.split_to(length);
-        let payload: RecordPayload = RecordPayload::decode_payload(record_type, &mut payload_buf)?;
+        let payload: RecordPayload = RecordPayload::decode_payload(record_type, &mut payload_buf, cipher_suite)?;
         
         Ok(Self {
             record_type,
@@ -71,7 +73,7 @@ impl TryFrom<u8> for RecordType {
             21 => Ok(Self::Alert),
             22 => Ok(Self::HandshakeMessage),
             23 => Ok(Self::ApplicationData),
-            _ => Err(Error::UnsupportedRecordType),
+            _ => Err(Error::Unknown("record type")),
         }
     }
 }
@@ -99,12 +101,12 @@ impl RecordPayload {
         }
     }
 
-    pub fn decode_payload(record_type: RecordType, buf: &mut BytesMut) -> Result<Self, Error> {
+    pub fn decode_payload(record_type: RecordType, buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, Error> {
         match record_type {
             RecordType::HandshakeMessage => {
                 let mut msgs: Vec<HandshakeMessage> = Vec::new();
                 while buf.has_remaining() {
-                    msgs.push(HandshakeMessage::decode(buf)?);
+                    msgs.push(HandshakeMessage::decode(buf, cipher_suite)?);
                 }
                 Ok(RecordPayload::Handshake(msgs))
             }
@@ -158,7 +160,7 @@ impl TryFrom<u8> for AlertLevel {
         match value {
             1 => Ok(AlertLevel::Warning),
             2 => Ok(AlertLevel::Fatal),
-            _ => Err(Error::UnknownAlertLevel),
+            _ => Err(Error::Unknown("alert level")),
         }
     }
 }
@@ -227,7 +229,7 @@ impl TryFrom<u8> for AlertDescription {
             115 => Ok(AlertDescription::UnknownPskIdentity),
             116 => Ok(AlertDescription::CertificateRequired),
             120 => Ok(AlertDescription::NoApplicationProtocol),
-            _ => Err(Error::UnknownAlertDescription),
+            _ => Err(Error::Unknown("alert description")),
         }
     }
 }

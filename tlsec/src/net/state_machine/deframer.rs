@@ -1,7 +1,11 @@
 use crate::messages::record::RecordType;
 use crate::messages::Version;
 
-use super::*;
+use crate::error::Error;
+
+use crate::messages::record::AlertDescription;
+
+use bytes::{BytesMut, BufMut, Buf};
 
 pub const TLS_RECORD_HEADER_SIZE: usize = 5;
 
@@ -61,7 +65,7 @@ impl MessageDeframer {
         
         let typ: RecordType = match RecordType::try_from(self.buffer[0]) {
             Ok(t) => t,
-            Err(_) => return Err(Error::UnexpectedMessage),
+            Err(_) => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
         };
         
         let version: u16 = u16::from_be_bytes([self.buffer[1], self.buffer[2]]);

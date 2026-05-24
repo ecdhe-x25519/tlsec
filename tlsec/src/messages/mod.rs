@@ -28,7 +28,7 @@ impl TryFrom<u16> for Version {
             0x0302 => Ok(Self::Tls11),
             0x0303 => Ok(Self::Tls12),
             0x0304 => Ok(Self::Tls13),
-            _ => Err(Error::UnsupportedVersion),
+            _ => Err(Error::Unknown("version")),
         }
     }
 }

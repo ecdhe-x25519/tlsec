@@ -1,7 +1,11 @@
 use super::*;
 use super::extensions::*;
 
-use certificate::*;
+use crate::error::Error;
+
+use crate::messages::handshake::certificate::*;
+
+use record::AlertDescription;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,7 +25,7 @@ impl TryFrom<u8> for ClientHandshakeType {
             0x05 => Ok(ClientHandshakeType::EndOfEarlyData),
             0x0B => Ok(ClientHandshakeType::Certificate),
             0x0F => Ok(ClientHandshakeType::CertificateVerify),
-            _ => Err(Error::UnsupportedHandshakeType),
+            _ => Err(Error::Unknown("handshake type")),
         }
     }
 }
@@ -113,7 +117,7 @@ impl Serialize for ClientHelloPayload {
         let legacy_session_id_length: usize = buf.get_u8() as usize;
 
         if legacy_session_id_length > 32 {
-            return Err(Error::Handshake("invalid session id length"));
+            return Err(Error::Alert(AlertDescription::HandshakeFailure));
         }
         if buf.remaining() < legacy_session_id_length {
             return Err(Error::Incomplete(legacy_session_id_length - buf.remaining()));

@@ -19,7 +19,7 @@ impl TryFrom<u16> for ServerExtensionType {
             0x002B => Ok(Self::SupportedVersions),
             0xFF01 => Ok(Self::RenegotiationInfo),
             0x0010 => Ok(Self::ALPN),
-            _ => Err(Error::UnsupportedExtension),
+            _ => Err(Error::Unknown("extension type")),
         }
     }
 }

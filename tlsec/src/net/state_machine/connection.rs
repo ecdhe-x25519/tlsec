@@ -1,6 +1,5 @@
 use std::mem::replace;
 
-use crate::messages::Serialize;
 use crate::messages::record::RecordType;
 use crate::messages::handshake::handshake::HandshakeMessage;
 use crate::messages::Version::Tls12;
@@ -8,20 +7,29 @@ use crate::messages::Version::Tls12;
 use crate::net::acceptor::ServerStart;
 use crate::net::connector::ClientStart;
 
+use crate::error::*;
+
+use crate::messages::record::AlertDescription;
+
 use super::state::{State, NextState};
+
 use super::context::Context;
+
 use super::deframer::{MessageDeframer, PlainMessage, OpaqueMessage};
 
+use super::*;
+
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
 use tokio::net::TcpStream;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 
-use super::*;
+use bytes::BytesMut;
 
 struct Placeholder;
 impl<S: Side> State<S> for Placeholder {
     fn handle(self: Box<Self>, _ctx: &mut Context<S>, _msg: HandshakeMessage) -> Result<NextState<S>, Error> {
-        Err(Error::Handshake("invalid state"))
+        Err(Error::Alert(AlertDescription::UnexpectedMessage))
     }
 }
 
@@ -39,6 +47,7 @@ impl TlsConnection<ClientSide> {
     pub async fn new_client(
         config: ClientConfig,
         stream: TcpStream,
+        buf_capacity: usize,
     ) -> Self {
         let (read_stream, write_stream) = stream.into_split();
 
@@ -52,8 +61,8 @@ impl TlsConnection<ClientSide> {
             state,
             ctx,
             deframer,
-            read_buf: BytesMut::with_capacity(16384),
-            write_buf: BytesMut::with_capacity(16384),
+            read_buf: BytesMut::with_capacity(buf_capacity),
+            write_buf: BytesMut::with_capacity(buf_capacity),
         }
     }
 }
@@ -62,6 +71,7 @@ impl TlsConnection<ServerSide> {
     pub async fn new_server(
         config: ServerConfig,
         stream: TcpStream,
+        buf_capacity: usize,
     ) -> Self {
         let (read_stream, write_stream) = stream.into_split();
 
@@ -75,8 +85,8 @@ impl TlsConnection<ServerSide> {
             state,
             ctx,
             deframer,
-            read_buf: BytesMut::with_capacity(16384),
-            write_buf: BytesMut::with_capacity(16384),
+            read_buf: BytesMut::with_capacity(buf_capacity),
+            write_buf: BytesMut::with_capacity(buf_capacity),
         }
     }
 }
@@ -93,16 +103,16 @@ impl<S: Side> TlsConnection<S> {
 
         while let Some(opaque) = self.deframer.pop()? {
             let plain: PlainMessage = self.ctx.common.record_layer.decrypt_incoming(opaque)?;
-            
+
             match plain.typ {
                 RecordType::HandshakeMessage => {
                     let mut payload: BytesMut = plain.payload;
-                    let handshake: HandshakeMessage = HandshakeMessage::decode(&mut payload)?;
-                    
+                    let handshake: HandshakeMessage = HandshakeMessage::decode(&mut payload, self.ctx.common.cipher_suite.as_ref())?;
+
                     let current: Box<dyn State<S>> = replace(&mut self.state, Box::new(Placeholder));
                     let next: NextState<S> = current.handle(&mut self.ctx, handshake)?;
                     self.state = next.state;
-                    
+
                     if let Some(output) = next.output {
                         let encrypted: OpaqueMessage = self.ctx.common.record_layer.encrypt_outgoing(
                             PlainMessage {
@@ -119,8 +129,7 @@ impl<S: Side> TlsConnection<S> {
                     // self.pending_data = Some(plain.payload);
                 }
                 RecordType::Alert => {
-                    // TODO: handle Alert
-                    return Err(Error::AlertReceived);
+                    return Err(Error::Alert(crate::messages::record::AlertDescription::AccessDenied));
                 }
             }
         }

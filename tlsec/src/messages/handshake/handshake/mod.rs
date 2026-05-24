@@ -1,8 +1,11 @@
 pub mod client;
 pub mod server;
-pub mod certificate;
 
 use crate::supported::cipher::SupportedCipherSuite;
+
+use crate::error::Error;
+
+use record::AlertDescription;
 
 use super::*;
 use super::super::*;
@@ -15,8 +18,8 @@ pub struct HandshakeMessage {
     pub payload: HandshakePayload, // length = 3 bytes
 }
 
-impl Serialize for HandshakeMessage {
-    fn encode(&self, buf: &mut BytesMut) {
+impl HandshakeMessage {
+    pub fn encode(&self, buf: &mut BytesMut) {
         buf.put_u8(self.handshake_type.into());
 
         let len_pos: usize = buf.len();
@@ -28,7 +31,7 @@ impl Serialize for HandshakeMessage {
         buf[len_pos..len_pos+3].copy_from_slice(&len.to_be_bytes());
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    pub fn decode(buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, Error> {
         if buf.remaining() < 5 {
             return Err(Error::Incomplete(5 - buf.remaining()));
         }
@@ -43,7 +46,7 @@ impl Serialize for HandshakeMessage {
         }
 
         let mut payload_buf: BytesMut = buf.split_to(len);
-        let payload: HandshakePayload = HandshakePayload::decode_payload(handshake_type, &mut payload_buf)?;
+        let payload: HandshakePayload = HandshakePayload::decode_payload(handshake_type, &mut payload_buf, cipher_suite)?;
 
         Ok(Self {
             handshake_type,
@@ -54,6 +57,7 @@ impl Serialize for HandshakeMessage {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HandshakeType {
+    Common(CommonHandshakeType),
     Client(ClientHandshakeType),
     Server(ServerHandshakeType),
 }
@@ -61,6 +65,7 @@ pub enum HandshakeType {
 impl Into<u8> for HandshakeType {
     fn into(self) -> u8 {
         match self {
+            Self::Common(typ) => typ as u8,
             Self::Client(typ) => typ as u8,
             Self::Server(typ) => typ as u8,
         }
@@ -79,11 +84,12 @@ impl TryFrom<u8> for HandshakeType {
             return Ok(HandshakeType::Client(typ));
         }
         
-        Err(Error::UnexpectedMessage)
+        Err(Error::Unknown("handshake side"))
     }
 }
 
 pub enum HandshakePayload {
+    Common(CommonHandshakePayload),
     Client(ClientHandshakePayload),
     Server(ServerHandshakePayload),
 }
@@ -91,13 +97,15 @@ pub enum HandshakePayload {
 impl HandshakePayload {
     pub fn encode_payload(&self, buf: &mut BytesMut) {
         match self {
+            Self::Common(typ) => typ.encode_payload(buf),
             Self::Client(typ) => typ.encode_payload(buf),
             Self::Server(typ) => typ.encode_payload(buf),
         }
     }
 
-    pub fn decode_payload(extension_type: HandshakeType, buf: &mut BytesMut) -> Result<Self, Error> {
+    pub fn decode_payload(extension_type: HandshakeType, buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, Error> {
         match extension_type {
+            HandshakeType::Common(z) => Ok(Self::Common(CommonHandshakePayload::decode_payload(z, buf, cipher_suite)?)),
             HandshakeType::Client(z) => Ok(Self::Client(ClientHandshakePayload::decode_payload(z, buf)?)),
             HandshakeType::Server(z) => Ok(Self::Server(ServerHandshakePayload::decode_payload(z, buf)?)),
         }
@@ -118,7 +126,7 @@ impl TryFrom<u8> for CommonHandshakeType {
         match value {
             0x14 => Ok(Self::Finished),
             0x18 => Ok(Self::KeyUpdate),
-            _ => Err(Error::UnsupportedHandshakeType),
+            _ => Err(Error::Unknown("handshake type")),
         }
     }
 }
@@ -136,7 +144,7 @@ impl CommonHandshakePayload {
         }
     }
 
-    pub fn decode_payload(handshake_type: CommonHandshakeType, buf: &mut BytesMut, cipher_suite: SupportedCipherSuite) -> Result<Self, Error> {
+    pub fn decode_payload(handshake_type: CommonHandshakeType, buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, Error> {
         match handshake_type {
             CommonHandshakeType::Finished => Ok(CommonHandshakePayload::Finished(FinishedPayload::decode(buf, cipher_suite)?)),
             CommonHandshakeType::KeyUpdate => Ok(CommonHandshakePayload::KeyUpdate(KeyUpdatePayload::decode(buf)?)),
@@ -153,11 +161,10 @@ impl FinishedPayload {
         buf.put_slice(&self.verify_data);
     }
 
-    fn decode(buf: &mut BytesMut, cipher_suite: SupportedCipherSuite) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, Error> {
         let cipher_suite: usize = match cipher_suite {
-            SupportedCipherSuite::Aes128 => SupportedCipherSuite::Aes128.hash_len(),
-            SupportedCipherSuite::Aes256 => SupportedCipherSuite::Aes256.hash_len(),
-            SupportedCipherSuite::ChaCha20 => SupportedCipherSuite::ChaCha20.hash_len(),
+            Some(cs) => cs.hash_len(),
+            None => return Err(Error::Crypto(format!("cipher suite not set"))),
         };
 
         if buf.remaining() < cipher_suite {
@@ -201,7 +208,7 @@ impl TryFrom<u8> for KeyUpdateRequest {
         match value {
             0 => Ok(KeyUpdateRequest::UpdateNotRequested),
             1 => Ok(KeyUpdateRequest::UpdateRequested),
-            _ => Err(Error::Handshake("unknown key update"))
+            _ => Err(Error::Alert(AlertDescription::MissingExtension))
         }
     }
 }

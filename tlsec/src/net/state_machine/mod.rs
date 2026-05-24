@@ -7,10 +7,6 @@ pub mod state;
 
 use configs::{ClientConfig, ServerConfig};
 
-pub use bytes::{BytesMut, BufMut, Buf};
-
-pub use crate::error::Error;
-
 pub trait Side: Send + Sync + 'static {
     type Config: Send + Sync;
     fn is_client() -> bool;

@@ -1,7 +1,7 @@
 use crate::encryption::cipher_suite::AnyCipher;
 use super::deframer::{OpaqueMessage, PlainMessage};
 use crate::messages::record::RecordType;
-use super::Error;
+use crate::error::Error;
 
 #[derive(PartialEq)]
 pub enum DirectionState {

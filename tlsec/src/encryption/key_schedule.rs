@@ -6,6 +6,104 @@ use super::transcript::TranscriptHash;
 
 use crate::supported::cipher::SupportedCipherSuite;
 
+pub struct HandshakeKeys {
+    pub client: AnyCipher,
+    pub server: AnyCipher,
+}
+
+impl HandshakeKeys {
+    pub fn derive_handshake_keys(
+        cipher_suite: SupportedCipherSuite,
+        psk: Option<&[u8]>,
+        shared_secret: &[u8],
+        transcript: TranscriptHash,
+    ) -> Result<HandshakeKeys, Error> {
+        let algo: hkdf::Algorithm = cipher_suite.hkdf_algorithm();
+    
+        let key_len: usize = cipher_suite.key_len();
+        let iv_len: usize = cipher_suite.iv_len();
+    
+        let hash_len: usize = cipher_suite.hash_len();
+        let zero_bytes: Vec<u8> = vec![0u8; hash_len];
+        
+        let early_secret: Prk = Salt::new(algo, &[]).extract(psk.unwrap_or(&zero_bytes));
+        
+        let mut derived_early: Vec<u8> = vec![0u8; hash_len];
+        early_secret.expand(&[b"derived"], algo)
+            .map_err(|e| Error::Crypto(format!("early secret expand failed: {e}")))?
+            .fill(&mut derived_early)
+            .map_err(|e| Error::Crypto(format!("early secret fill error: {e}")))?;
+        
+        let handshake_secret: Prk = Salt::new(algo, shared_secret).extract(&derived_early);
+    
+        let context: Vec<u8> = transcript.hash();
+        
+        let client_key: Vec<u8> = hkdf_expand_label(&handshake_secret, b"c hs traffic key", &context, algo, key_len)?;
+        let client_iv_shit: Vec<u8> = hkdf_expand_label(&handshake_secret, b"c hs traffic iv", &context, algo, iv_len)?;
+        let client_iv: Vec<u8> = client_iv_shit[..iv_len].try_into().map_err(|e| Error::Crypto(format!("C HS IV error: {e}")))?;
+        
+        let server_key: Vec<u8> = hkdf_expand_label(&handshake_secret, b"s hs traffic key", &context, algo, key_len)?;
+        let server_iv_shit: Vec<u8> = hkdf_expand_label(&handshake_secret, b"s hs traffic iv", &context, algo, iv_len)?;
+        let server_iv: Vec<u8> = server_iv_shit[..iv_len].try_into().map_err(|e| Error::Crypto(format!("C HS IV error: {e}")))?;
+        
+        Ok(Self {
+            client: cipher_suite.create_cipher(client_key, client_iv)?,
+            server: cipher_suite.create_cipher(server_key, server_iv)?,
+        })
+    }
+}
+
+pub struct ApplicationKeys {
+    pub client: AnyCipher,
+    pub server: AnyCipher,
+}
+
+impl ApplicationKeys {
+    pub fn derive_application_keys(
+        cipher_suite: SupportedCipherSuite,
+        psk: Option<&[u8]>,
+        shared_secret: &[u8],
+    ) -> Result<ApplicationKeys, Error> {
+        let algo: hkdf::Algorithm = cipher_suite.hkdf_algorithm();
+    
+        let key_len: usize = cipher_suite.key_len();
+        let iv_len: usize = cipher_suite.iv_len();
+    
+        let hash_len: usize = cipher_suite.hash_len();
+        let zero_bytes: Vec<u8> = vec![0u8; hash_len];
+        
+        let early_secret: Prk = Salt::new(algo, &[]).extract(psk.unwrap_or(&zero_bytes));
+        
+        let mut derived_early: Vec<u8> = vec![0u8; hash_len];
+        early_secret.expand(&[b"derived"], algo)
+            .map_err(|e| Error::Crypto(format!("early secret expand failed: {e}")))?
+            .fill(&mut derived_early)
+            .map_err(|e| Error::Crypto(format!("early secret fill error: {e}")))?;
+        
+        let handshake_secret: Prk = Salt::new(algo, shared_secret).extract(&derived_early);
+        
+        let mut derived: Vec<u8> = vec![0u8; hash_len];
+        handshake_secret.expand(&[b"derived"], algo)
+            .map_err(|e| Error::Crypto(format!("master secret expand error: {e}")))?
+            .fill(&mut derived)
+            .map_err(|e| Error::Crypto(format!("master secret fill error: {e}")))?;
+        let master_secret = Salt::new(algo, &[]).extract(&derived);
+        
+        let client_key: Vec<u8> = hkdf_expand_label(&master_secret, b"c ap traffic key", b"", algo, key_len)?;
+        let client_iv_shit: Vec<u8> = hkdf_expand_label(&master_secret, b"c ap traffic iv", b"", algo, iv_len)?;
+        let client_iv: Vec<u8> = client_iv_shit[..iv_len].try_into().map_err(|e| Error::Crypto(format!("C HS IV error: {e}")))?;
+    
+        let server_key: Vec<u8> = hkdf_expand_label(&master_secret, b"s ap traffic key", b"", algo, key_len)?;
+        let server_iv_shit: Vec<u8> = hkdf_expand_label(&master_secret, b"s ap traffic iv", b"", algo, iv_len)?;
+        let server_iv: Vec<u8> = server_iv_shit[..iv_len].try_into().map_err(|e| Error::Crypto(format!("C HS IV error: {e}")))?;
+        
+        Ok(Self {
+            client: cipher_suite.create_cipher(client_key, client_iv)?,
+            server: cipher_suite.create_cipher(server_key, server_iv)?,
+        })
+    }
+}
+
 fn hkdf_expand_label(
     prk: &Prk, 
     label: &[u8], 
@@ -30,88 +128,4 @@ fn hkdf_expand_label(
     .map_err(|e| Error::Crypto(format!("OKM fill error: {e}")))?;
     
     Ok(out)
-}
-
-pub fn derive_handshake_keyss(
-    cipher_suite: SupportedCipherSuite,
-    psk: Option<&[u8]>,
-    shared_secret: &[u8],
-    transcript: TranscriptHash,
-) -> Result<HandshakeKeys, Error> {
-    let algo: hkdf::Algorithm = cipher_suite.hkdf_algorithm();
-
-    let key_len: usize = cipher_suite.key_len();
-    let iv_len: usize = cipher_suite.iv_len();
-
-    let hash_len: usize = cipher_suite.hash_len();
-    let zero_bytes: Vec<u8> = vec![0u8; hash_len];
-    
-    let early_secret: Prk = Salt::new(algo, &[]).extract(psk.unwrap_or(&zero_bytes));
-    
-    let mut derived_early: Vec<u8> = vec![0u8; hash_len];
-    early_secret.expand(&[b"derived"], algo)
-        .map_err(|e| Error::Crypto(format!("early secret expand failed: {e}")))?
-        .fill(&mut derived_early)
-        .map_err(|e| Error::Crypto(format!("early secret fill error: {e}")))?;
-    
-    let handshake_secret: Prk = Salt::new(algo, shared_secret).extract(&derived_early);
-
-    let context: Vec<u8> = transcript.hash();
-    
-    let client_key: Vec<u8> = hkdf_expand_label(&handshake_secret, b"c hs traffic key", &context, algo, key_len)?;
-    let client_iv_shit: Vec<u8> = hkdf_expand_label(&handshake_secret, b"c hs traffic iv", &context, algo, iv_len)?;
-    let client_iv: Vec<u8> = client_iv_shit[..iv_len].try_into().map_err(|e| Error::Crypto(format!("C HS IV error: {e}")))?;
-    
-    let server_key: Vec<u8> = hkdf_expand_label(&handshake_secret, b"s hs traffic key", &context, algo, key_len)?;
-    let server_iv_shit: Vec<u8> = hkdf_expand_label(&handshake_secret, b"s hs traffic iv", &context, algo, iv_len)?;
-    let server_iv: Vec<u8> = server_iv_shit[..iv_len].try_into().map_err(|e| Error::Crypto(format!("C HS IV error: {e}")))?;
-    
-    Ok(HandshakeKeys {
-        client: cipher_suite.create_cipher(client_key, client_iv)?,
-        server: cipher_suite.create_cipher(server_key, server_iv)?,
-    })
-}
-
-pub fn derive_application_keys(
-    cipher_suite: SupportedCipherSuite,
-    psk: Option<&[u8]>,
-    shared_secret: &[u8],
-) -> Result<ApplicationKeys, Error> {
-    let algo: hkdf::Algorithm = cipher_suite.hkdf_algorithm();
-
-    let key_len: usize = cipher_suite.key_len();
-    let iv_len: usize = cipher_suite.iv_len();
-
-    let hash_len: usize = cipher_suite.hash_len();
-    let zero_bytes: Vec<u8> = vec![0u8; hash_len];
-    
-    let early_secret: Prk = Salt::new(algo, &[]).extract(psk.unwrap_or(&zero_bytes));
-    
-    let mut derived_early: Vec<u8> = vec![0u8; hash_len];
-    early_secret.expand(&[b"derived"], algo)
-        .map_err(|e| Error::Crypto(format!("early secret expand failed: {e}")))?
-        .fill(&mut derived_early)
-        .map_err(|e| Error::Crypto(format!("early secret fill error: {e}")))?;
-    
-    let handshake_secret: Prk = Salt::new(algo, shared_secret).extract(&derived_early);
-    
-    let mut derived: Vec<u8> = vec![0u8; hash_len];
-    handshake_secret.expand(&[b"derived"], algo)
-        .map_err(|e| Error::Crypto(format!("master secret expand error: {e}")))?
-        .fill(&mut derived)
-        .map_err(|e| Error::Crypto(format!("master secret fill error: {e}")))?;
-    let master_secret = Salt::new(algo, &[]).extract(&derived);
-    
-    let client_key: Vec<u8> = hkdf_expand_label(&master_secret, b"c ap traffic key", b"", algo, key_len)?;
-    let client_iv_shit: Vec<u8> = hkdf_expand_label(&master_secret, b"c ap traffic iv", b"", algo, iv_len)?;
-    let client_iv: Vec<u8> = client_iv_shit[..iv_len].try_into().map_err(|e| Error::Crypto(format!("C HS IV error: {e}")))?;
-
-    let server_key: Vec<u8> = hkdf_expand_label(&master_secret, b"s ap traffic key", b"", algo, key_len)?;
-    let server_iv_shit: Vec<u8> = hkdf_expand_label(&master_secret, b"s ap traffic iv", b"", algo, iv_len)?;
-    let server_iv: Vec<u8> = server_iv_shit[..iv_len].try_into().map_err(|e| Error::Crypto(format!("C HS IV error: {e}")))?;
-    
-    Ok(ApplicationKeys {
-        client: cipher_suite.create_cipher(client_key, client_iv)?,
-        server: cipher_suite.create_cipher(server_key, server_iv)?,
-    })
 }

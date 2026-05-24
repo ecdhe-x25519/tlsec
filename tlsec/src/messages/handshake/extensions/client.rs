@@ -45,7 +45,7 @@ impl TryFrom<u16> for ClientExtensionType {
             _ => if is_grease_u16(value) {
                 Ok(Self::Grease)
             } else {
-                Err(Error::UnsupportedExtension)
+                Err(Error::Unknown("extensions"))
             }
         }
     }
@@ -131,7 +131,7 @@ impl TryFrom<u8> for NameType {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x00 => Ok(Self::HostName),
-            _ => Err(Error::UnsupportedNameType),
+            _ => Err(Error::Unknown("name type")),
         }
     }
 }
@@ -255,7 +255,7 @@ impl TryFrom<u8> for StatusType {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x01 => Ok(StatusType::Ocsp),
-            _ => Err(Error::UnsupportedStatusType),
+            _ => Err(Error::Unknown("status type")),
         }
     }
 }
@@ -396,7 +396,7 @@ impl TryFrom<u8> for PskKeyExchangeMode {
         match value {
             0x00 => Ok(Self::PskKe),
             0x01 => Ok(Self::PskDheKe),
-            _ => Err(Error::UnsupportedCipherSuite)
+            _ => Err(Error::Unknown("PSK exchange mode"))
         }
     }
 }
@@ -448,7 +448,7 @@ impl TryFrom<u8> for CompressionAlgorithm {
         match value {
             0x01 => Ok(Self::Zlib),
             0x02 => Ok(Self::Brotli),
-            _ => Err(Error::UnsupportedCompressionAlgorithm)
+            _ => Err(Error::Unknown("compression algorithm"))
         }
     }
 }
@@ -562,7 +562,7 @@ impl TryFrom<u8> for EcPointFormat {
             0x00 => Ok(Self::Uncompressed),
             0x01 => Ok(Self::AnsiX962CompressedPrime),
             0x02 => Ok(Self::AnsiX962CompressedChar2),
-            _ => Err(Error::UnsupportedEcPointFormat)
+            _ => Err(Error::Unknown("EC point format"))
         }
     }
 }

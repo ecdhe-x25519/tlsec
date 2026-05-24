@@ -71,7 +71,7 @@ impl TryFrom<u16> for ExtensionType {
             return Ok(ExtensionType::Client(typ));
         }
         
-        Err(Error::UnsupportedExtension)
+        Err(Error::Unknown("extension type"))
     }
 }
 
@@ -199,7 +199,7 @@ impl Serialize for AlpnProtocol {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AlpnProtocols {
     Http11,
     H2,
@@ -214,7 +214,7 @@ impl TryFrom<BytesMut> for AlpnProtocols {
             b"http/1.1" => Ok(AlpnProtocols::Http11),
             b"h2" => Ok(AlpnProtocols::H2),
             b"h3" => Ok(AlpnProtocols::H3),
-            _ => Err(Error::UnsupportedALPN),
+            _ => Err(Error::Unknown("ALPN")),
         }
     }
 }
