@@ -1,10 +1,15 @@
 use ring::agreement::{EphemeralPrivateKey, PublicKey, UnparsedPublicKey, Algorithm, agree_ephemeral};
 
-use crate::supported::named_group::SupportedNamedGroup;
+use crate::message::*;
 
-use super::*;
+use crate::error::*;
 
-pub fn generate_key_pair(random: Random, algo: SupportedNamedGroup) -> Result<(EphemeralPrivateKey, PublicKey), Error> {
+use super::Random;
+
+pub fn generate_key_pair(
+    random: &Random,
+    algo: &SupportedNamedGroup
+) -> Result<(EphemeralPrivateKey, PublicKey), Error> {
     let ng = algo.to_curve();
 
     let private_key: EphemeralPrivateKey = EphemeralPrivateKey::generate(ng, &random.0)
@@ -27,4 +32,9 @@ pub fn compute_shared_secret(
         .map_err(|e| Error::Crypto(format!("failed to compute shared secret: {e}")))?;
     
     Ok(shared_secret)
+}
+
+#[cfg(test)]
+mod test_key_exchange {
+    
 }

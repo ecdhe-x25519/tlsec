@@ -1,17 +1,6 @@
-use crate::encryption::key_schedule::{HandshakeKeys, ApplicationKeys};
-use crate::encryption::transcript::TranscriptHash;
-use crate::encryption::key_exchange::{compute_shared_secret, generate_key_pair};
+use crate::encryption::*;
 
-use crate::messages::handshake::extensions::AlpnProtocols;
-use crate::messages::handshake::handshake::HandshakeMessage;
-
-use crate::supported::compression_algorithm::SupportedCompressionAlgorithm;
-use crate::supported::compression_method::SupportedCompressionMethod;
-use crate::supported::ec_point_format::SupportedEcPointFormat;
-use crate::supported::named_group::SupportedNamedGroup;
-use crate::supported::signature::SupportedScheme;
-use crate::supported::version::SupportedVersion;
-use crate::supported::cipher::SupportedCipherSuite;
+use crate::message::*;
 
 use super::context::Context;
 
@@ -21,9 +10,10 @@ use crate::error::Error;
 
 use super::*;
 
+use ring::agreement::EphemeralPrivateKey;
 use ring::digest::SHA256;
 
-use bytes::BytesMut;
+use bytes::*;
 
 pub struct CommonState {
     pub record_layer: RecordLayer,
@@ -38,8 +28,11 @@ pub struct CommonState {
     pub compression_method: Option<SupportedCompressionMethod>,
     pub compression_algorithm: Option<SupportedCompressionAlgorithm>,
     pub signature_scheme: Option<SupportedScheme>,
-    pub psk: Option<Vec<u8>>,
-    pub pbk: Option<BytesMut>,
+    pub private_key: Option<EphemeralPrivateKey>,
+    pub public_key: Option<Vec<u8>>,
+    pub shared_key: Option<Vec<u8>>,
+    pub pre_shared_key: Option<Vec<u8>>,
+    pub peer_public_key: Option<Bytes>,
     pub error: Option<Error>,
     pub handshake_complete: bool,
     pub closed: bool,
@@ -60,29 +53,86 @@ impl CommonState {
             compression_method: None,
             compression_algorithm: None,
             signature_scheme: None,
-            psk: None,
-            pbk: None,
+            pre_shared_key: None,
+            peer_public_key: None,
+            private_key: None,
+            public_key: None,
+            shared_key: None,
             error: None,
             handshake_complete: false,
             closed: false,
         }
     }
 
-    pub fn set_handshake_keys(&mut self) {
-        self.handshake_keys = Some(HandshakeKeys::derive_handshake_keys(
-            &self.cipher_suite,
-            &self.psk,
-            &self.pbk,
-            &self.transcript)?
-        )
+    fn gen_keypair(&mut self) -> Result<(), Error> {
+        let algo: SupportedNamedGroup = self.named_group
+            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+
+        let rand: &Random = get_random();
+        let (private_key, public_key) = generate_key_pair(rand, &algo)?;
+
+        self.private_key = Some(private_key);
+        self.public_key = Some(public_key.as_ref().to_vec());
+
+        Ok(())
     }
 
-    pub fn set_application_keys(&mut self) {
-        self.application_keys = Some(ApplicationKeys::derive_application_keys(
-            &self.cipher_suite,
-            &self.psk,
-            &self.pbk)?
-        )
+    fn compute_secret(&mut self) -> Result<(), Error> {
+        let private_key: EphemeralPrivateKey = self.private_key.take()
+            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+        let peer_public_key: Bytes = self.peer_public_key.take()
+            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+        let algo: SupportedNamedGroup = self.named_group
+            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+
+        let shared: Vec<u8> = compute_shared_secret(private_key, &peer_public_key, algo.to_curve())?;
+
+        self.shared_key = Some(shared);
+
+        Ok(())
+    }
+
+    pub fn set_handshake_keys(&mut self) -> Result<(), Error> {
+        let cipher_suite: &SupportedCipherSuite = self.cipher_suite.as_ref()
+            .ok_or(Error::Crypto(format!("cipher suite is not set")))?;
+
+        let mut psk: Option<&[u8]> = None;
+
+        if let Some(k) = &self.pre_shared_key {
+            psk = Some(&k.as_slice())
+        };
+
+        let pbk: &Bytes = self.peer_public_key.as_ref()
+            .ok_or(Error::Crypto(format!("pbk is not set")))?;
+
+        let transcript: &TranscriptHash = &self.transcript;
+
+        Ok(self.handshake_keys = Some(HandshakeKeys::derive_handshake_keys(
+            cipher_suite,
+            psk,
+            pbk,
+            transcript)?
+        ))
+    }
+
+    pub fn set_application_keys(&mut self) -> Result<(), Error> {
+        let cipher_suite: &SupportedCipherSuite = self.cipher_suite.as_ref()
+            .ok_or(Error::Crypto(format!("cipher suite is not set")))?;
+
+        let mut psk: Option<&[u8]> = None;
+
+        if let Some(k) = &self.pre_shared_key {
+            psk = Some(&k.as_slice())
+        };
+
+        let pbk: &Bytes = self.peer_public_key.as_ref()
+            .ok_or(Error::Crypto(format!("pbk is not set")))?;
+
+        Ok(self.application_keys = Some(ApplicationKeys::derive_application_keys(
+            cipher_suite,
+            psk,
+            pbk)?
+        ))
     }
 
     pub fn is_handshake_complete(&self) -> bool {

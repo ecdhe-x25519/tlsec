@@ -1,10 +1,6 @@
 use std::fmt;
 
-use crate::messages::record::{AlertDescription, AlertPayload, Record};
-use crate::messages::record::RecordType::Alert;
-use crate::messages::record::RecordPayload;
-use crate::messages::Version::Tls12;
-use crate::messages::record::AlertLevel::Fatal;
+use crate::message::*;
 
 #[derive(Debug)]
 pub enum Error {
@@ -60,15 +56,20 @@ impl Error {
 
 pub fn build_alert(error: AlertDescription) -> Record {
     let alert_message: AlertPayload = AlertPayload {
-        level: Fatal,
+        level: AlertLevel::Fatal,
         description: error,
     };
 
     let record: Record = Record {
-        record_type: Alert,
-        legacy_version: Tls12,
+        record_type: RecordType::Alert,
+        legacy_version: Version::Tls12,
         payload: RecordPayload::Alert(alert_message),
     };
 
     record
+}
+
+#[cfg(test)]
+mod test_error {
+    
 }

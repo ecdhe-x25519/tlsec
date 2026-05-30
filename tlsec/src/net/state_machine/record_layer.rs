@@ -1,6 +1,6 @@
 use crate::encryption::cipher_suite::AnyCipher;
 use super::deframer::{OpaqueMessage, PlainMessage};
-use crate::messages::record::RecordType;
+use crate::message::*;
 use crate::error::Error;
 
 #[derive(PartialEq)]

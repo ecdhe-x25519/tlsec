@@ -1,8 +1,8 @@
 use ring::digest::{Algorithm, Context};
 
 pub struct TranscriptHash {
-    ctx: Context,
-    algorithm: &'static Algorithm,
+    pub ctx: Context,
+    pub algorithm: &'static Algorithm,
 }
 
 impl TranscriptHash {
@@ -28,4 +28,9 @@ impl TranscriptHash {
     pub fn change_algorithm(&mut self, algorithm: &'static Algorithm) {
         self.algorithm = algorithm
     }
+}
+
+#[cfg(test)]
+mod test_transcript {
+    
 }

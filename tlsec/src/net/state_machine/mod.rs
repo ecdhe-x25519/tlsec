@@ -4,25 +4,12 @@ pub mod context;
 pub mod deframer;
 pub mod record_layer;
 pub mod state;
+pub mod side;
 
-use configs::{ClientConfig, ServerConfig};
-
-pub trait Side: Send + Sync + 'static {
-    type Config: Send + Sync;
-    fn is_client() -> bool;
-}
-
-pub struct ClientSide;
-
-impl Side for ClientSide {
-    type Config = ClientConfig;
-    fn is_client() -> bool { true }
-}
-
-pub struct ServerSide;
-
-impl Side for ServerSide {
-    type Config = ServerConfig;
-    fn is_client() -> bool { false }
-
-}
+pub use configs::*;
+pub use connection::*;
+pub use context::*;
+pub use deframer::*;
+pub use record_layer::*;
+pub use state::*;
+pub use side::*;

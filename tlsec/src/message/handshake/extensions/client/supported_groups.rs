@@ -1,0 +1,43 @@
+use crate::message::*;
+use crate::error::*;
+
+use bytes::*;
+
+pub struct SupportedGroupsPayload {
+    pub groups: Vec<NamedGroup>, // length = u16
+}
+
+impl Serialize for SupportedGroupsPayload {
+    fn encode(&self, buf: &mut BytesMut) {
+        buf.put_u16((self.groups.len() * 2) as u16);
+        for group in &self.groups {
+            buf.put_u16(*group as u16);
+        }
+    }
+
+    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+        if buf.remaining() < 2 {
+            return Err(Error::Incomplete(2 - buf.remaining()))
+        }
+
+        let list_length: usize = buf.get_u16() as usize;
+
+        if buf.remaining() < list_length {
+            return Err(Error::Incomplete(list_length - buf.remaining()))
+        }
+
+        let mut groups: Vec<NamedGroup> = Vec::new();
+        for _ in 0..list_length / 2 {
+            groups.push(NamedGroup::try_from(buf.get_u16())?);
+        }
+
+        Ok(Self {
+            groups,
+        })
+    }
+}
+
+#[cfg(test)]
+mod test_client_sg_parse {
+    
+}

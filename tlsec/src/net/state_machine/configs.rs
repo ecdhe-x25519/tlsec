@@ -1,14 +1,4 @@
-use crate::messages::handshake::extensions::client::PskKeyExchangeMode;
-use crate::messages::handshake::handshake::client::ClientHelloPayload;
-use crate::messages::handshake::handshake::server::ServerHelloPayload;
-
-use crate::supported::cipher::SupportedCipherSuite;
-use crate::supported::compression_algorithm::SupportedCompressionAlgorithm;
-use crate::supported::compression_method::SupportedCompressionMethod;
-use crate::supported::ec_point_format::SupportedEcPointFormat;
-use crate::supported::named_group::SupportedNamedGroup;
-use crate::supported::signature::SupportedScheme;
-use crate::supported::version::SupportedVersion;
+use crate::message::*;
 
 pub struct CommonConfig {
     pub supported_versions: Vec<SupportedVersion>,
@@ -23,8 +13,11 @@ pub struct CommonConfig {
 pub struct ClientConfig {
     pub common: CommonConfig,
     pub client_hello: ClientHelloPayload,
-    pub cert_path: Option<String>,
-    pub psk: Option<PskIdentitie>,
+    pub cert_root_path: Option<String>,
+    pub client_cert_path: Option<String>,
+    pub psk: Option<PskIdentity>,
+    pub server_name: Option<String>,
+    pub verify_dns: bool,
 }
 
 pub struct ServerConfig {
@@ -32,18 +25,19 @@ pub struct ServerConfig {
     pub server_hello: ServerHelloPayload,
     pub client_auth_mode: ClientAuthMode,
     pub server_name: Option<String>,
-    pub cert_path: Option<String>,
-    pub psk_identities: Option<Vec<PskIdentitie>>,
+    pub cert_root_path: Option<String>,
+    pub server_cert_path: Option<String>,
+    pub psk_path: Option<String>,
+    pub psk_identities: Option<Vec<PskIdentity>>,
     pub psk_ke_mode: Option<PskKeyExchangeMode>,
 }
 
-pub struct PskIdentitie {
+pub struct PskIdentity {
     pub identity: Vec<u8>,
     pub psk: Vec<u8>,
 }
 
 pub enum ClientAuthMode {
     None,
-    Request,
     Require,
 }

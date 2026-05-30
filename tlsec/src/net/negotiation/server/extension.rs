@@ -1,18 +1,11 @@
-use crate::messages::handshake::extensions::{*, client::*};
-use crate::messages::record::AlertDescription;
+use crate::message::*;
 
 use crate::net::state_machine::ServerSide;
 use crate::net::state_machine::context::Context;
 
-use crate::supported::compression_algorithm::SupportedCompressionAlgorithm;
-use crate::supported::ec_point_format::SupportedEcPointFormat;
-use crate::supported::named_group::SupportedNamedGroup;
-use crate::supported::signature::SupportedScheme;
-use crate::supported::version::SupportedVersion;
-
 use crate::error::Error;
 
-use bytes::BytesMut;
+use bytes::*;
 
 pub fn handle_extensions_server(
     mut ctx: &mut Context<ServerSide>,
@@ -24,11 +17,11 @@ pub fn handle_extensions_server(
     let mut ec_point_format: Option<SupportedEcPointFormat> = None;
     let mut compression_algorithm: Option<SupportedCompressionAlgorithm> = None;
     let mut signature_scheme: Option<SupportedScheme> = None;
-    let mut pbk: Option<BytesMut> = None;
+    let mut pbk: Option<Bytes> = None;
     let mut error: Option<Error> = None;
 
     for ext in exts {
-        match &ext.data {
+        match &ext.payload {
             ExtensionPayload::Client(client_type) => {
                 match client_type {
                     ClientExtensionPayload::ServerName(p) => {
@@ -37,7 +30,6 @@ pub fn handle_extensions_server(
                             break;
                         }
                     }
-                    ClientExtensionPayload::StatusRequest(_) => continue,
                     ClientExtensionPayload::SupportedGroups(p) => {
                         match handle_supported_groups(p, &mut ctx) {
                             Ok(ng) => named_group = Some(ng),
@@ -74,8 +66,6 @@ pub fn handle_extensions_server(
                             }
                         }
                     }
-                    ClientExtensionPayload::SignedCertificateTimestamp => continue,
-                    ClientExtensionPayload::ExtendedMainSecret => continue,
                     ClientExtensionPayload::CompressCertificate(p) => {
                         match handle_compress_certificate(p, &mut ctx) {
                             Ok(ca) => compression_algorithm = Some(ca),
@@ -85,7 +75,6 @@ pub fn handle_extensions_server(
                             }
                         }
                     }
-                    ClientExtensionPayload::SessionTicket => continue,
                     ClientExtensionPayload::SupportedVersionsClient(p) => {
                         match handle_supported_versions(p, &mut ctx) {
                             Ok(v) => version = Some(v),
@@ -116,8 +105,7 @@ pub fn handle_extensions_server(
                             break;
                         }
                     }
-                    ClientExtensionPayload::EncryptedClientHello(_) => continue,
-                    ClientExtensionPayload::Grease(_) => continue,
+                    _ => continue,
                 }
             }
             _ => return Err(Error::Alert(AlertDescription::HandshakeFailure))
@@ -134,7 +122,7 @@ pub fn handle_extensions_server(
     ctx.common.named_group = named_group;
     ctx.common.version = version;
     ctx.common.signature_scheme = signature_scheme;
-    ctx.common.pbk = pbk;
+    ctx.common.peer_public_key = pbk;
 
     Ok(())
 }
@@ -264,7 +252,7 @@ fn handle_psk_key_exchange_modes(
 fn handle_key_share(
     ext: &KeyShareClient,
     ctx: &mut Context<ServerSide>
-) -> Result<BytesMut, Error> {
+) -> Result<Bytes, Error> {
     for client_share in &ext.client_shares {
         for supported_group in &ctx.config.common.supported_named_groups {
             if supported_group.compare(&client_share.group).is_some() {

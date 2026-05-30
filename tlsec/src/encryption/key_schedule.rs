@@ -1,10 +1,10 @@
 use ring::hkdf::{self, Prk, Salt};
 
-use super::Error;
+use crate::error::Error;
 use super::cipher_suite::*;
 use super::transcript::TranscriptHash;
 
-use crate::supported::cipher::SupportedCipherSuite;
+use crate::message::handshake::hello::cipher_suite::SupportedCipherSuite;
 
 pub struct HandshakeKeys {
     pub client: AnyCipher,
@@ -13,10 +13,10 @@ pub struct HandshakeKeys {
 
 impl HandshakeKeys {
     pub fn derive_handshake_keys(
-        cipher_suite: SupportedCipherSuite,
+        cipher_suite: &SupportedCipherSuite,
         psk: Option<&[u8]>,
         shared_secret: &[u8],
-        transcript: TranscriptHash,
+        transcript: &TranscriptHash,
     ) -> Result<HandshakeKeys, Error> {
         let algo: hkdf::Algorithm = cipher_suite.hkdf_algorithm();
     
@@ -60,7 +60,7 @@ pub struct ApplicationKeys {
 
 impl ApplicationKeys {
     pub fn derive_application_keys(
-        cipher_suite: SupportedCipherSuite,
+        cipher_suite: &SupportedCipherSuite,
         psk: Option<&[u8]>,
         shared_secret: &[u8],
     ) -> Result<ApplicationKeys, Error> {
@@ -128,4 +128,9 @@ fn hkdf_expand_label(
     .map_err(|e| Error::Crypto(format!("OKM fill error: {e}")))?;
     
     Ok(out)
+}
+
+#[cfg(test)]
+mod test_key_schedule {
+    
 }

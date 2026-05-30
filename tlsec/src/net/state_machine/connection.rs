@@ -1,15 +1,11 @@
 use std::mem::replace;
 
-use crate::messages::record::RecordType;
-use crate::messages::handshake::handshake::HandshakeMessage;
-use crate::messages::Version::Tls12;
+use crate::message::*;
 
 use crate::net::acceptor::ServerStart;
 use crate::net::connector::ClientStart;
 
 use crate::error::*;
-
-use crate::messages::record::AlertDescription;
 
 use super::state::{State, NextState};
 
@@ -24,7 +20,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 
-use bytes::BytesMut;
+use bytes::*;
 
 struct Placeholder;
 impl<S: Side> State<S> for Placeholder {
@@ -117,7 +113,7 @@ impl<S: Side> TlsConnection<S> {
                         let encrypted: OpaqueMessage = self.ctx.common.record_layer.encrypt_outgoing(
                             PlainMessage {
                                 typ: RecordType::HandshakeMessage,
-                                version: Tls12,
+                                version: Version::Tls12,
                                 payload: output,
                             }
                         )?;
@@ -129,7 +125,7 @@ impl<S: Side> TlsConnection<S> {
                     // self.pending_data = Some(plain.payload);
                 }
                 RecordType::Alert => {
-                    return Err(Error::Alert(crate::messages::record::AlertDescription::AccessDenied));
+                    return Err(Error::Alert(AlertDescription::AccessDenied));
                 }
             }
         }

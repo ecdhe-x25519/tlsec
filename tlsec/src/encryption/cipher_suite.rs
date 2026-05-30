@@ -11,7 +11,7 @@ use ring::aead::{
 
 use bytes::BytesMut;
 
-use super::Error;
+use crate::error::Error;
 
 pub trait AeadAlgorithm<const KEY_LEN: usize, const NONCE_LEN: usize> {
     fn encrypt(key: &[u8; KEY_LEN], nonce: &[u8; NONCE_LEN], ad: &[u8], data: &mut BytesMut) -> Result<(), Error>;
@@ -137,4 +137,9 @@ impl AnyCipher {
             AnyCipher::Aes256(_) => 32,
         }
     }
+}
+
+#[cfg(test)]
+mod test_encryption {
+    
 }

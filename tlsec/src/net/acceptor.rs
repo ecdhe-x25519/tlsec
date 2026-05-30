@@ -1,22 +1,12 @@
-use super::negotiation::server::extension::handle_extensions_server;
-use super::negotiation::server::handshake::{select_cipher_suites_server, select_compression_method_server};
+use super::negotiation::*;
 
-use crate::messages::handshake::handshake::HandshakeMessage;
+use crate::message::*;
 
-use crate::messages::handshake::handshake::certificate::{CertificatePayload, CertificateVerifyPayload};
-use crate::messages::handshake::handshake::client::*;
-use crate::messages::handshake::handshake::*;
+use crate::certificate::*;
 
-use crate::net::state_machine::configs::ClientAuthMode;
-use crate::net::state_machine::context::Context;
-use crate::net::state_machine::state::NextState;
+use super::state_machine::*;
 
-use super::state_machine::state::State;
-use super::state_machine::ServerSide;
-
-use crate::error::Error;
-
-use crate::messages::record::AlertDescription;
+use crate::error::*;
 
 pub struct ServerStart;
 
@@ -68,9 +58,10 @@ impl State<ServerSide> for ExpectClientHello {
 
         ctx.update_transcript(&msg.encode(buf));
 
+        let server_hello: ServerHelloPayload = ctx.config.server_hello;
+
         match ctx.config.client_auth_mode {
             ClientAuthMode::None => Ok(NextState::new(ExpectClientFinished { handshake_keys }, &client_hello)),
-            ClientAuthMode::Request => Ok(NextState::new(ExpectClientCertificate, &client_hello)),
             ClientAuthMode::Require => Ok(NextState::new(ExpectClientCertificate, &client_hello)),
         }
     }
@@ -90,7 +81,15 @@ impl State<ServerSide> for ExpectClientCertificate {
             _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
         };
 
+        parse_certs_server(
+            ctx,
+            &client_certificate,
+            ctx.config.common.supported_signature_schemes.as_slice()
+        )?;
+
         ctx.update_transcript(&msg.encode(buf));
+
+        Ok(NextState::new(ExpectClientCertificateVerify, client_certificate))
     }
 }
 
@@ -103,12 +102,26 @@ impl State<ServerSide> for ExpectClientCertificateVerify {
         msg: HandshakeMessage,
     ) -> Result<NextState<ServerSide>, Error>
     {
-        let client_certificate: CertificateVerifyPayload = match msg.payload {
+        let client_certificate: CertificatePayload = match msg.payload {
+            HandshakePayload::Client(ClientHandshakePayload::Certificate(ch)) => ch,
+            _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
+        };
+
+        let client_certificate_verify: CertificateVerifyPayload = match msg.payload {
             HandshakePayload::Client(ClientHandshakePayload::CertificateVerify(ch)) => ch,
             _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
         };
 
+        verify_certs(
+            &client_certificate,
+            &client_certificate_verify,
+            &ctx.common.transcript.hash(),
+            &ctx.common.signature_scheme.ok_or(Error::Alert(AlertDescription::HandshakeFailure))?
+        )?;
+
         ctx.update_transcript(&msg.encode(buf));
+
+        Ok(NextState::new(ExpectClientFinished, client_certificate_verify))
     }
 }
 
@@ -123,12 +136,16 @@ impl State<ServerSide> for ExpectClientFinished {
         msg: HandshakeMessage,
     ) -> Result<NextState<ServerSide>, Error>
     {
-        let client_certificate: FinishedPayload = match msg.payload {
+        let client_finished: FinishedPayload = match msg.payload {
             HandshakePayload::Common(CommonHandshakePayload::Finished(ch)) => ch,
             _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
         };
 
-        ctx.update_transcript(&msg.encode(buf));
+        if client_finished.verify_data.as_ref() == ctx.common.transcript.hash() {
+            return Ok(NextState::new(ServerConnected, client_finished))
+        }
+
+        Err(Error::Alert(AlertDescription::HandshakeFailure))
     }
 }
 
@@ -138,9 +155,9 @@ impl State<ServerSide> for ServerConnected {
     fn handle(
         self: Box<Self>,
         ctx: &mut Context<ServerSide>,
-        msg: crate::messages::handshake::handshake::HandshakeMessage,
+        msg: crate::message::handshake::handshake::HandshakeMessage,
     ) -> Result<NextState<ServerSide>, Error>
     {
-        
+        Ok(())
     }
 }

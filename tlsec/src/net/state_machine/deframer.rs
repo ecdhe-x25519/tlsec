@@ -1,9 +1,6 @@
-use crate::messages::record::RecordType;
-use crate::messages::Version;
+use crate::message::*;
 
 use crate::error::Error;
-
-use crate::messages::record::AlertDescription;
 
 use bytes::{BytesMut, BufMut, Buf};
 

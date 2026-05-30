@@ -1,5 +1,4 @@
-use crate::messages::handshake::handshake::server::ServerHelloPayload;
-use crate::messages::record::AlertDescription;
+use crate::message::*;
 
 use crate::net::state_machine::ClientSide;
 use crate::net::state_machine::context::Context;
