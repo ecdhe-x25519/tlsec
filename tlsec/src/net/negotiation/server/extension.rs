@@ -1,7 +1,21 @@
-use crate::message::*;
+use crate::message::handshake::extensions::client::app_settings::ApplicationSettingsPayload;
+use crate::message::handshake::extensions::client::key_share::KeyShareClient;
+use crate::message::handshake::extensions::client::psk::PskKeyExchangeModesPayload;
+use crate::message::handshake::extensions::client::sni::ServerNamePayload;
+use crate::message::handshake::extensions::client::supported_groups::SupportedGroupsPayload;
+use crate::message::handshake::extensions::client::supported_versions::SupportedVersionsClient;
+use crate::message::alert::AlertDescription;
+use crate::message::version::SupportedVersion;
+use crate::message::handshake::certificate::sig_scheme::{SignatureAlgorithmsPayload, SupportedScheme};
+use crate::message::handshake::extension::{Extension, ExtensionPayload};
+use crate::message::handshake::extensions::alpn::{AlpnPayload, AlpnProtocols};
+use crate::message::handshake::extensions::client::client::ClientExtensionPayload;
+use crate::message::handshake::extensions::client::ec_point_format::{EcPointFormatsPayload, SupportedEcPointFormat};
+use crate::message::handshake::extensions::compression_algo::{CompressCertificatePayload, SupportedCompressionAlgorithm};
+use crate::message::handshake::extensions::key_share::SupportedNamedGroup;
 
-use crate::net::state_machine::ServerSide;
 use crate::net::state_machine::context::Context;
+use crate::net::state_machine::side::ServerSide;
 
 use crate::error::Error;
 
@@ -161,7 +175,7 @@ fn handle_server_name(
     ext: &ServerNamePayload,
     ctx: &mut Context<ServerSide>
 ) -> Result<(), Error> {
-    match &ctx.config.server_name {
+    match &ctx.config.common.server_name {
         Some(sn) => {
             if &ext.name == sn {
                 return Ok(())
@@ -237,7 +251,7 @@ fn handle_psk_key_exchange_modes(
     ext: &PskKeyExchangeModesPayload,
     ctx: &mut Context<ServerSide>
 ) -> Result<(), Error> {
-    match ctx.config.psk_ke_mode {
+    match ctx.config.common.psk_ke_mode {
         Some(mode) => {
             if ext.modes.contains(&mode) {
                 return Ok(())

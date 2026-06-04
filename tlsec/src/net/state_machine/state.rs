@@ -1,14 +1,22 @@
-use crate::encryption::*;
-
-use crate::message::*;
-
-use super::context::Context;
-
-use super::record_layer::RecordLayer;
+use crate::encryption::key_exchange::{compute_shared_secret, generate_key_pair};
+use crate::encryption::key_schedule::{ApplicationKeys, HandshakeKeys};
+use crate::encryption::random::{Random, get_random};
+use crate::encryption::transcript::TranscriptHash;
+use crate::message::handshake::messages::HandshakeMessage;
+use crate::message::alert::AlertDescription;
+use crate::message::version::SupportedVersion;
+use crate::message::handshake::certificate::sig_scheme::SupportedScheme;
+use crate::message::handshake::extensions::alpn::AlpnProtocols;
+use crate::message::handshake::extensions::client::ec_point_format::SupportedEcPointFormat;
+use crate::message::handshake::extensions::compression_algo::SupportedCompressionAlgorithm;
+use crate::message::handshake::extensions::key_share::SupportedNamedGroup;
+use crate::message::handshake::hello::cipher_suite::SupportedCipherSuite;
+use crate::message::handshake::hello::compression_method::SupportedCompressionMethod;
+use crate::net::state_machine::context::Context;
+use crate::net::state_machine::record_layer::RecordLayer;
+use crate::net::state_machine::side::Side;
 
 use crate::error::Error;
-
-use super::*;
 
 use ring::agreement::EphemeralPrivateKey;
 use ring::digest::SHA256;
@@ -64,7 +72,7 @@ impl CommonState {
         }
     }
 
-    fn gen_keypair(&mut self) -> Result<(), Error> {
+    pub fn gen_keypair(&mut self) -> Result<(), Error> {
         let algo: SupportedNamedGroup = self.named_group
             .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
 
@@ -77,7 +85,7 @@ impl CommonState {
         Ok(())
     }
 
-    fn compute_secret(&mut self) -> Result<(), Error> {
+    pub fn compute_secret(&mut self) -> Result<(), Error> {
         let private_key: EphemeralPrivateKey = self.private_key.take()
             .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
         let peer_public_key: Bytes = self.peer_public_key.take()
@@ -85,7 +93,7 @@ impl CommonState {
         let algo: SupportedNamedGroup = self.named_group
             .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
 
-        let shared: Vec<u8> = compute_shared_secret(private_key, &peer_public_key, algo.to_curve())?;
+        let shared: Vec<u8> = compute_shared_secret(private_key, &peer_public_key, &algo)?;
 
         self.shared_key = Some(shared);
 

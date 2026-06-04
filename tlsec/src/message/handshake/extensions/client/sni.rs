@@ -1,15 +1,17 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct ServerNamePayload {
     pub name_type: NameType,
     pub name: String, // length = u16
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NameType {
     HostName = 0x00,
 }

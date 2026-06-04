@@ -1,6 +1,4 @@
-use super::state::CommonState;
-
-use super::*;
+use crate::net::state_machine::{configs::{ClientConfig, ServerConfig}, side::{ClientSide, ServerSide, Side}, state::CommonState};
 
 pub struct Context<S: Side> {
     pub common: CommonState,
@@ -25,15 +23,5 @@ impl Context<ServerSide> {
             config,
             side: ServerSide,
         }
-    }
-}
-
-impl<S: Side> Context<S> {
-    pub fn is_client(&self) -> bool {
-        std::any::TypeId::of::<S>() == std::any::TypeId::of::<ClientSide>()
-    }
-    
-    pub fn is_server(&self) -> bool {
-        std::any::TypeId::of::<S>() == std::any::TypeId::of::<ServerSide>()
     }
 }

@@ -1,5 +1,9 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+use crate::message::handshake::certificate::certificate::CertificatePayload;
+use crate::message::handshake::certificate::certificate_verify::CertificateVerifyPayload;
+use crate::message::handshake::hello::client::ClientHelloPayload;
+
+use crate::error::Error;
 
 use bytes::*;
 
@@ -26,6 +30,7 @@ impl TryFrom<u8> for ClientHandshakeType {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum ClientHandshakePayload {
     ClientHello(ClientHelloPayload),
     EndOfEarlyData,

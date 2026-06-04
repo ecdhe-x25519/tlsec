@@ -1,8 +1,12 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+use crate::message::handshake::extensions::server::server::*;
+use crate::message::handshake::extensions::client::client::*;
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct Extension {
     pub extension_type: ExtensionType,
     pub payload: ExtensionPayload, // length = u16
@@ -70,6 +74,7 @@ impl TryFrom<u16> for ExtensionType {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum ExtensionPayload {
     Client(ClientExtensionPayload),
     Server(ServerExtensionPayload),

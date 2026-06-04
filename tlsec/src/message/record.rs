@@ -1,8 +1,14 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+use crate::message::version::Version;
+use crate::message::alert::AlertPayload;
+use crate::message::handshake::hello::cipher_suite::SupportedCipherSuite;
+use crate::message::handshake::messages::HandshakeMessage;
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct Record {
     pub record_type: RecordType,
     pub legacy_version: Version,
@@ -58,7 +64,7 @@ impl Record {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RecordType {
     Alert = 0x15,
     HandshakeMessage = 0x16,
@@ -78,6 +84,7 @@ impl TryFrom<u8> for RecordType {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum RecordPayload {
     Handshake(Vec<HandshakeMessage>),
     Alert(AlertPayload),
@@ -122,5 +129,24 @@ impl RecordPayload {
 
 #[cfg(test)]
 mod test_record_parse {
-    
+    use super::*;
+
+    #[test]
+    fn record_parse() {
+        let mut buf: BytesMut = BytesMut::new();
+
+        let app_data: Bytes = Bytes::new();
+
+        let rec: Record = Record {
+            record_type: RecordType::ApplicationData,
+            legacy_version: Version::Tls12,
+            payload: RecordPayload::ApplicationData(app_data),
+        };
+
+        rec.encode(&mut buf);
+
+        let decoded: Record = Record::decode(&mut buf, Some(&SupportedCipherSuite::ChaCha20)).unwrap();
+
+        assert_eq!(rec, decoded);
+    }
 }

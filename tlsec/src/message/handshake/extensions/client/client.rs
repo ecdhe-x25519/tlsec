@@ -1,5 +1,18 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::handshake::certificate::sig_scheme::SignatureAlgorithmsPayload;
+use crate::message::handshake::extensions::alpn::AlpnPayload;
+use crate::message::handshake::extensions::client::app_settings::ApplicationSettingsPayload;
+use crate::message::handshake::extensions::client::ec_point_format::EcPointFormatsPayload;
+use crate::message::handshake::extensions::client::ech::EncryptedClientHelloPayload;
+use crate::message::handshake::extensions::client::key_share::KeyShareClient;
+use crate::message::handshake::extensions::client::psk::PskKeyExchangeModesPayload;
+use crate::message::handshake::extensions::client::sni::ServerNamePayload;
+use crate::message::handshake::extensions::client::supported_groups::SupportedGroupsPayload;
+use crate::message::handshake::extensions::client::supported_versions::SupportedVersionsClient;
+use crate::message::handshake::extensions::compression_algo::CompressCertificatePayload;
+use crate::message::handshake::grease::is_grease_u16;
+use crate::message::serialize::Serialize;
+
+use crate::error::Error;
 
 use bytes::*;
 
@@ -53,6 +66,7 @@ impl TryFrom<u16> for ClientExtensionType {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum ClientExtensionPayload {
     ServerName(ServerNamePayload),
     SupportedGroups(SupportedGroupsPayload),

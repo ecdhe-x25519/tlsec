@@ -1,8 +1,11 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+use crate::message::handshake::extension::Extension;
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct EncryptedExtensionsPayload {
     pub extensions: Vec<Extension>, // length = u16
 }

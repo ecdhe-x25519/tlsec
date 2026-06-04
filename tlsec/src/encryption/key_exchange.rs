@@ -1,18 +1,16 @@
-use ring::agreement::{EphemeralPrivateKey, PublicKey, UnparsedPublicKey, Algorithm, agree_ephemeral};
+use ring::agreement::{EphemeralPrivateKey, PublicKey, UnparsedPublicKey, agree_ephemeral};
 
-use crate::message::*;
+use crate::message::handshake::extensions::key_share::SupportedNamedGroup;
 
 use crate::error::*;
 
-use super::Random;
+use super::random::Random;
 
 pub fn generate_key_pair(
     random: &Random,
     algo: &SupportedNamedGroup
 ) -> Result<(EphemeralPrivateKey, PublicKey), Error> {
-    let ng = algo.to_curve();
-
-    let private_key: EphemeralPrivateKey = EphemeralPrivateKey::generate(ng, &random.0)
+    let private_key: EphemeralPrivateKey = EphemeralPrivateKey::generate(algo.to_curve(), &random.0)
         .map_err(|e| Error::Crypto(format!("private key generation error: {e}")))?;
 
     let public_key: PublicKey = private_key.compute_public_key()
@@ -24,9 +22,9 @@ pub fn generate_key_pair(
 pub fn compute_shared_secret(
     private_key: EphemeralPrivateKey,
     peer_public: &[u8],
-    algo: &'static Algorithm,
+    algo: &SupportedNamedGroup,
 ) -> Result<Vec<u8>, Error> {
-    let peer_pub: UnparsedPublicKey<&[u8]> = UnparsedPublicKey::new(algo, peer_public);
+    let peer_pub: UnparsedPublicKey<&[u8]> = UnparsedPublicKey::new(algo.to_curve(), peer_public);
     
     let shared_secret: Vec<u8> = agree_ephemeral(private_key, &peer_pub, |secret: &[u8]| secret.to_vec())
         .map_err(|e| Error::Crypto(format!("failed to compute shared secret: {e}")))?;
@@ -36,5 +34,36 @@ pub fn compute_shared_secret(
 
 #[cfg(test)]
 mod test_key_exchange {
-    
+    use crate::encryption::key_exchange::*;
+    use crate::encryption::random::Random;
+
+    #[test]
+    fn x25519() {
+        let rng: Random = Random::new();
+        let algo: SupportedNamedGroup = SupportedNamedGroup::X25519;
+
+        let (priv_key, pub_key) = generate_key_pair(&rng, &algo).unwrap();
+
+        compute_shared_secret(priv_key, pub_key.as_ref(), &algo).unwrap();
+    }
+
+    #[test]
+    fn secp256r1() {
+        let rng: Random = Random::new();
+        let algo: SupportedNamedGroup = SupportedNamedGroup::Secp256R1;
+
+        let (priv_key, pub_key) = generate_key_pair(&rng, &algo).unwrap();
+
+        compute_shared_secret(priv_key, pub_key.as_ref(), &algo).unwrap();
+    }
+
+    #[test]
+    fn secp384r1() {
+        let rng: Random = Random::new();
+        let algo: SupportedNamedGroup = SupportedNamedGroup::Secp384R1;
+
+        let (priv_key, pub_key) = generate_key_pair(&rng, &algo).unwrap();
+
+        compute_shared_secret(priv_key, pub_key.as_ref(), &algo).unwrap();
+    }
 }

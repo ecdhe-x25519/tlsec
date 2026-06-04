@@ -1,5 +1,10 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+use crate::message::handshake::extensions::alpn::AlpnPayload;
+use crate::message::handshake::extensions::server::key_share::KeyShareHelloRetryRequest;
+use crate::message::handshake::extensions::server::key_share::KeyShareServer;
+use crate::message::handshake::extensions::server::supported_versions::SupportedVersionsServer;
+
+use crate::error::Error;
 
 use bytes::*;
 
@@ -26,6 +31,7 @@ impl TryFrom<u16> for ServerExtensionType {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum ServerExtensionPayload {
     KeyShareServer(KeyShareServer),
     SupportedVersionsServer(SupportedVersionsServer),

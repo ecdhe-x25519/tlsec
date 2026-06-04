@@ -86,17 +86,17 @@ where
     pub fn new(key: [u8; KEY_LEN], iv: [u8; NONCE_LEN]) -> Self {
         Self { key, iv, _phantom: std::marker::PhantomData }
     }
-    
+
     pub fn encrypt(&self, seq: u64, buf: &mut BytesMut, ad: &[u8]) -> Result<(), Error> {
         let nonce: [u8; NONCE_LEN] = self.build_nonce(seq);
         A::encrypt(&self.key, &nonce, ad, buf)
     }
-    
+
     pub fn decrypt(&self, seq: u64, buf: &mut BytesMut, ad: &[u8]) -> Result<(), Error> {
         let nonce: [u8; NONCE_LEN] = self.build_nonce(seq);
         A::decrypt(&self.key, &nonce, ad, buf)
     }
-    
+
     fn build_nonce(&self, seq: u64) -> [u8; NONCE_LEN] {
         let mut nonce: [u8; NONCE_LEN] = self.iv;
         let seq_bytes: [u8; 8] = seq.to_le_bytes();
@@ -121,7 +121,7 @@ impl AnyCipher {
             AnyCipher::Aes256(c) => c.encrypt(seq, buf, ad),
         }
     }
-    
+
     pub fn decrypt(&mut self, seq: u64, buf: &mut BytesMut, ad: &[u8]) -> Result<(), Error> {
         match self {
             AnyCipher::ChaCha20(c) => c.decrypt(seq, buf, ad),
@@ -129,7 +129,7 @@ impl AnyCipher {
             AnyCipher::Aes256(c) => c.decrypt(seq, buf, ad),
         }
     }
-    
+
     pub fn key_len(&self) -> usize {
         match self {
             AnyCipher::ChaCha20(_) => 32,

@@ -1,6 +1,8 @@
 use std::fmt;
 
-use crate::message::*;
+use crate::message::alert::*;
+use crate::message::record::*;
+use crate::message::version::Version;
 
 #[derive(Debug)]
 pub enum Error {

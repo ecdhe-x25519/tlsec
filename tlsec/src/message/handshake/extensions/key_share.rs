@@ -1,10 +1,13 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+use crate::message::handshake::grease::is_grease_u16;
+
+use crate::error::Error;
 
 use ring::agreement::{self, ECDH_P256, ECDH_P384, X25519};
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct KeyShareEntry {
     pub group: NamedGroup,
     pub key_exchange: Bytes, // length = u16
@@ -40,7 +43,7 @@ impl Serialize for KeyShareEntry {
 }
 
 #[repr(u16)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NamedGroup {
     X25519 = 0x1D,
     Secp256r1 = 0x17,

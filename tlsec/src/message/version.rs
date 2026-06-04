@@ -36,8 +36,3 @@ impl SupportedVersion {
         }
     }
 }
-
-#[cfg(test)]
-mod test_version_parse {
-    
-}

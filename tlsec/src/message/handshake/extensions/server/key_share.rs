@@ -1,8 +1,12 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+use crate::message::handshake::extensions::key_share::KeyShareEntry;
+use crate::message::handshake::extensions::key_share::NamedGroup;
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct KeyShareServer {
     pub server_share: KeyShareEntry,
 }
@@ -18,6 +22,7 @@ impl Serialize for KeyShareServer {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct KeyShareHelloRetryRequest {
     pub selected_group: NamedGroup,
 }

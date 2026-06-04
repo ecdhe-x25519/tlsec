@@ -29,5 +29,18 @@ pub fn get_random() -> &'static Random {
 
 #[cfg(test)]
 mod test_random {
-    
+    use super::*;
+
+    #[test]
+    fn test_random() {
+        let rng = Random::new();
+
+        let mut rnd1: [u8; 32] = [0u8; 32];
+        rng.ochkagen(&mut rnd1).unwrap();
+
+        let mut rnd2: [u8; 32] = [0u8; 32];
+        rng.ochkagen(&mut rnd2).unwrap();
+
+        assert_ne!(rnd1, rnd2);
+    }
 }

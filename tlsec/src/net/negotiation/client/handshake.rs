@@ -1,6 +1,6 @@
-use crate::message::*;
-
-use crate::net::state_machine::ClientSide;
+use crate::message::alert::AlertDescription;
+use crate::net::state_machine::side::ClientSide;
+use crate::message::handshake::hello::server::ServerHelloPayload;
 use crate::net::state_machine::context::Context;
 
 use crate::error::Error;

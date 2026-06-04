@@ -1,9 +1,15 @@
-use crate::message::*;
-
+use crate::message::alert::AlertDescription;
+use crate::message::handshake::extension::{Extension, ExtensionPayload};
+use crate::message::handshake::extensions::alpn::{AlpnPayload, AlpnProtocols};
+use crate::message::handshake::extensions::key_share::SupportedNamedGroup;
+use crate::message::handshake::extensions::server::key_share::{KeyShareHelloRetryRequest, KeyShareServer};
+use crate::message::handshake::extensions::server::server::ServerExtensionPayload;
+use crate::message::handshake::extensions::server::supported_versions::SupportedVersionsServer;
+use crate::message::version::SupportedVersion;
 use crate::net::state_machine::context::Context;
-use crate::net::state_machine::ClientSide;
+use crate::net::state_machine::side::ClientSide;
 
-use crate::error::*;
+use crate::error::Error;
 
 use bytes::*;
 

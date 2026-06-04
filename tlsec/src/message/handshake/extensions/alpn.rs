@@ -1,8 +1,10 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct AlpnPayload {
     pub protocols: Vec<AlpnProtocol>, // length = u16
 }
@@ -40,6 +42,7 @@ impl Serialize for AlpnPayload {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct AlpnProtocol {
     pub name: AlpnProtocols, // length = u8
 }

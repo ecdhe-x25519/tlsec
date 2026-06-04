@@ -1,8 +1,11 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+use crate::message::handshake::extensions::key_share::KeyShareEntry;
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct KeyShareClient {
     pub client_shares: Vec<KeyShareEntry>, // length = u16
 }

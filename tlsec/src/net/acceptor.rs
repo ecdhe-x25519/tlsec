@@ -1,12 +1,21 @@
-use super::negotiation::*;
+use crate::certificate::cert_store::CertStore;
+use crate::certificate::verify::{verify_certs, verify_certs_server};
+use crate::encryption::key_schedule::HandshakeKeys;
+use crate::message::alert::AlertDescription;
+use crate::message::handshake::certificate::certificate::{CertificateEntryPayload, CertificatePayload};
+use crate::message::handshake::certificate::certificate_verify::CertificateVerifyPayload;
+use crate::message::handshake::hello::cipher_suite::SupportedCipherSuite;
+use crate::message::handshake::hello::client::ClientHelloPayload;
+use crate::message::handshake::message::client::ClientHandshakePayload;
+use crate::message::handshake::messages::{CommonHandshakePayload, FinishedPayload, HandshakeMessage, HandshakePayload};
+use crate::net::negotiation::server::extension::handle_extensions_server;
+use crate::net::negotiation::server::handshake::{select_cipher_suites_server, select_compression_method_server};
+use crate::net::state_machine::configs::ClientAuthMode;
+use crate::net::state_machine::context::Context;
+use crate::net::state_machine::side::ServerSide;
+use crate::net::state_machine::state::{NextState, State};
 
-use crate::message::*;
-
-use crate::certificate::*;
-
-use super::state_machine::*;
-
-use crate::error::*;
+use crate::error::Error;
 
 pub struct ServerStart;
 
@@ -35,34 +44,37 @@ impl State<ServerSide> for ExpectClientHello {
             _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
         };
 
-        match select_cipher_suites_server(ctx, &client_hello) {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                return Err(e)
-            }
-        };
+        select_cipher_suites_server(ctx, &client_hello)?;
 
-        match select_compression_method_server(ctx, &client_hello) {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                return Err(e)
-            }
-        };
+        select_compression_method_server(ctx, &client_hello)?;
 
-        match handle_extensions_server(ctx, &client_hello.extensions) {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                return Err(e)
-            }
-        };
+        handle_extensions_server(ctx, &client_hello.extensions)?;
 
-        ctx.update_transcript(&msg.encode(buf));
+        ctx.common.transcript.update(&msg.raw);
 
-        let server_hello: ServerHelloPayload = ctx.config.server_hello;
+        let cs: &SupportedCipherSuite = &ctx.common.cipher_suite
+            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+
+        let psk: &Vec<u8> = ctx.common.pre_shared_key.as_ref()
+            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+
+        let shared_key: &Vec<u8> = ctx.common.shared_key.as_ref()
+            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+
+        let hs_keys: HandshakeKeys = HandshakeKeys::derive_handshake_keys(
+            &cs,
+            Some(&psk.as_ref()),
+            &shared_key.as_ref(),
+            &ctx.common.transcript
+        )?;
+
+        ctx.common.record_layer.prepare_decrypter(hs_keys.server);
+
+        ctx.common.record_layer.start_decrypting();
 
         match ctx.config.client_auth_mode {
-            ClientAuthMode::None => Ok(NextState::new(ExpectClientFinished { handshake_keys }, &client_hello)),
-            ClientAuthMode::Require => Ok(NextState::new(ExpectClientCertificate, &client_hello)),
+            ClientAuthMode::None => Ok(NextState::new(ExpectClientFinished, None)),
+            ClientAuthMode::Require => Ok(NextState::new(ExpectClientCertificate, None)),
         }
     }
 }
@@ -81,19 +93,24 @@ impl State<ServerSide> for ExpectClientCertificate {
             _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
         };
 
-        parse_certs_server(
-            ctx,
-            &client_certificate,
+        let cert_store: &&CertStore = &ctx.config.common.cert_root.as_ref()
+            .ok_or(Error::Alert(AlertDescription::CertificateUnknown))?;
+
+        verify_certs_server(
+            cert_store,
+            &client_certificate.certificate_list,
             ctx.config.common.supported_signature_schemes.as_slice()
         )?;
 
-        ctx.update_transcript(&msg.encode(buf));
+        ctx.common.transcript.update(&msg.raw);
 
-        Ok(NextState::new(ExpectClientCertificateVerify, client_certificate))
+        Ok(NextState::new(ExpectClientCertificateVerify {certificate: client_certificate.certificate_list}, None))
     }
 }
 
-pub struct ExpectClientCertificateVerify;
+pub struct ExpectClientCertificateVerify {
+    pub certificate: Vec<CertificateEntryPayload>,
+}
 
 impl State<ServerSide> for ExpectClientCertificateVerify {
     fn handle(
@@ -102,32 +119,25 @@ impl State<ServerSide> for ExpectClientCertificateVerify {
         msg: HandshakeMessage,
     ) -> Result<NextState<ServerSide>, Error>
     {
-        let client_certificate: CertificatePayload = match msg.payload {
-            HandshakePayload::Client(ClientHandshakePayload::Certificate(ch)) => ch,
-            _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
-        };
-
         let client_certificate_verify: CertificateVerifyPayload = match msg.payload {
             HandshakePayload::Client(ClientHandshakePayload::CertificateVerify(ch)) => ch,
             _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
         };
 
         verify_certs(
-            &client_certificate,
+            &self.certificate,
             &client_certificate_verify,
             &ctx.common.transcript.hash(),
             &ctx.common.signature_scheme.ok_or(Error::Alert(AlertDescription::HandshakeFailure))?
         )?;
 
-        ctx.update_transcript(&msg.encode(buf));
+        ctx.common.transcript.update(&msg.raw);
 
-        Ok(NextState::new(ExpectClientFinished, client_certificate_verify))
+        Ok(NextState::new(ExpectClientFinished, None))
     }
 }
 
-pub struct ExpectClientFinished {
-    pub handshake_keys: HandshakeKeys,
-}
+pub struct ExpectClientFinished;
 
 impl State<ServerSide> for ExpectClientFinished {
     fn handle(
@@ -141,8 +151,10 @@ impl State<ServerSide> for ExpectClientFinished {
             _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
         };
 
+        ctx.common.transcript.update(&msg.raw);
+
         if client_finished.verify_data.as_ref() == ctx.common.transcript.hash() {
-            return Ok(NextState::new(ServerConnected, client_finished))
+            return Ok(NextState::new(ServerConnected, None))
         }
 
         Err(Error::Alert(AlertDescription::HandshakeFailure))
@@ -154,10 +166,10 @@ pub struct ServerConnected;
 impl State<ServerSide> for ServerConnected {
     fn handle(
         self: Box<Self>,
-        ctx: &mut Context<ServerSide>,
-        msg: crate::message::handshake::handshake::HandshakeMessage,
+        _ctx: &mut Context<ServerSide>,
+        _msg: HandshakeMessage,
     ) -> Result<NextState<ServerSide>, Error>
     {
-        Ok(())
+        Err(Error::Alert(AlertDescription::UnexpectedMessage))
     }
 }

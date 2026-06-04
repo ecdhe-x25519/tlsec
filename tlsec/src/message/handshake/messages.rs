@@ -1,11 +1,18 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::alert::AlertDescription;
+use crate::message::serialize::Serialize;
+use crate::message::handshake::hello::cipher_suite::SupportedCipherSuite;
+use crate::message::handshake::message::client::{ClientHandshakePayload, ClientHandshakeType};
+use crate::message::handshake::message::server::{ServerHandshakePayload, ServerHandshakeType};
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct HandshakeMessage {
     pub handshake_type: HandshakeType,
     pub payload: HandshakePayload, // length = 3 bytes
+    pub raw: BytesMut,
 }
 
 impl HandshakeMessage {
@@ -26,6 +33,8 @@ impl HandshakeMessage {
             return Err(Error::Incomplete(5 - buf.remaining()));
         }
 
+        let start_len: usize = buf.len();
+
         let handshake_type: HandshakeType = HandshakeType::try_from(buf.get_u8())?;
         let length: [u8; 3] = [buf.get_u8(), buf.get_u8(), buf.get_u8()];
 
@@ -38,9 +47,12 @@ impl HandshakeMessage {
         let mut payload_buf: BytesMut = buf.split_to(len);
         let payload: HandshakePayload = HandshakePayload::decode_payload(handshake_type, &mut payload_buf, cipher_suite)?;
 
+        let raw: BytesMut = buf.split_to(start_len - buf.len());
+
         Ok(Self {
             handshake_type,
             payload,
+            raw,
         })
     }
 }
@@ -78,6 +90,7 @@ impl TryFrom<u8> for HandshakeType {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum HandshakePayload {
     Common(CommonHandshakePayload),
     Client(ClientHandshakePayload),
@@ -121,6 +134,7 @@ impl TryFrom<u8> for CommonHandshakeType {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub enum CommonHandshakePayload {
     Finished(FinishedPayload),
     KeyUpdate(KeyUpdatePayload),
@@ -142,6 +156,7 @@ impl CommonHandshakePayload {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct FinishedPayload {
     pub verify_data: Bytes,
 }
@@ -167,6 +182,7 @@ impl FinishedPayload {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct KeyUpdatePayload {
     pub request_update: KeyUpdateRequest,
 }
@@ -185,7 +201,7 @@ impl Serialize for KeyUpdatePayload {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyUpdateRequest {
     UpdateNotRequested = 0x00,
     UpdateRequested = 0x01,

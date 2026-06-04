@@ -1,5 +1,7 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::handshake::certificate::sig_scheme::SignatureScheme;
+use crate::message::serialize::Serialize;
+
+use crate::error::Error;
 
 use bytes::*;
 
@@ -44,5 +46,23 @@ impl Serialize for CertificateVerifyPayload {
 
 #[cfg(test)]
 mod test_cert_verify_parse {
-    
+    use super::*;
+
+    #[test]
+    fn cert_verify_parse() {
+        let mut buf: BytesMut = BytesMut::new();
+
+        let sig: Bytes = Bytes::new();
+
+        let cert_verify: CertificateVerifyPayload = CertificateVerifyPayload {
+            algorithm: SignatureScheme::Ed25519,
+            signature: sig,
+        };
+
+        cert_verify.encode(&mut buf);
+
+        let decoded: CertificateVerifyPayload = CertificateVerifyPayload::decode(&mut buf).unwrap();
+
+        assert_eq!(cert_verify, decoded);
+    }
 }

@@ -1,8 +1,15 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::alert::AlertDescription;
+use crate::message::serialize::Serialize;
+use crate::message::version::Version;
+use crate::message::handshake::extension::Extension;
+use crate::message::handshake::hello::cipher_suite::CipherSuite;
+use crate::message::handshake::hello::compression_method::CompressionMethod;
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct ClientHelloPayload {
     pub legacy_version: Version,
     pub random: [u8; 32],

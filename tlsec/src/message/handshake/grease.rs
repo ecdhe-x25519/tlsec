@@ -1,6 +1,6 @@
 use crate::error::*;
 
-use crate::encryption::Random;
+use crate::encryption::random::Random;
 
 pub const GREASE_U8_VALUES: [u8; 16] = [
     0x0A, 0x1A, 0x2A, 0x3A, 0x4A, 0x5A, 0x6A, 0x7A,

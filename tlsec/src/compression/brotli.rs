@@ -20,5 +20,19 @@ pub fn brotli_decompress_cert(compressed_cert: &[u8]) -> Result<Vec<u8>, Error> 
 
 #[cfg(test)]
 mod test_brotli {
-    
+    use crate::compression::brotli::{brotli_compress_cert, brotli_decompress_cert};
+    use crate::encryption::random::Random;
+
+    #[test]
+    fn test_brotli_compress() {
+        let rng: Random = Random::new();
+
+        let mut cert: Vec<u8> = vec![0u8; 1500];
+        rng.ochkagen(&mut cert).unwrap();
+
+        let compressed_cert: Vec<u8> = brotli_compress_cert(&cert).unwrap();
+        let decompressed_cert: Vec<u8> = brotli_decompress_cert(&compressed_cert).unwrap();
+
+        assert_eq!(cert, decompressed_cert);
+    }
 }

@@ -1,5 +1,8 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::handshake::extensions::certificate::sct::SignedCertificateTimestampPayload;
+use crate::message::handshake::extensions::certificate::status_request::StatusRequestPayload;
+use crate::message::serialize::Serialize;
+
+use crate::error::Error;
 
 use bytes::*;
 
@@ -213,5 +216,43 @@ impl CertificateEntryExtensionPayload {
 
 #[cfg(test)]
 mod test_cert_parse {
-    
+    use crate::message::handshake::extensions::certificate::status_request::StatusType;
+
+    use super::*;
+
+    #[test]
+    fn cert_parse() {
+        let mut buf: BytesMut = BytesMut::new();
+
+        let zero: Bytes = Bytes::new();
+
+        let sr_payload: StatusRequestPayload = StatusRequestPayload {
+            status_type: StatusType::Ocsp,
+            responder_id_list: zero.clone(),
+            request_extensions: zero.clone(),
+        };
+
+        let ext_payload: CertificateEntryExtensionPayload = CertificateEntryExtensionPayload::StatusRequest(sr_payload);
+
+        let ext: CertificateEntryExtension = CertificateEntryExtension {
+            extension_type: CertificateEntryExtensionType::StatusRequest,
+            payload: ext_payload,
+        };
+
+        let cert_list: CertificateEntryPayload = CertificateEntryPayload {
+            certificate_data: zero.clone(),
+            extensions: vec![ext],
+        };
+
+        let cert: CertificatePayload = CertificatePayload {
+            certificate_request_context: zero,
+            certificate_list: vec![cert_list],
+        };
+
+        cert.encode(&mut buf);
+
+        let decoded: CertificatePayload = CertificatePayload::decode(&mut buf).unwrap();
+
+        assert_eq!(cert, decoded);
+    }
 }

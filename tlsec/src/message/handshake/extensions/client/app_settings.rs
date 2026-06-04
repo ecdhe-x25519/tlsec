@@ -1,8 +1,11 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+use crate::message::handshake::extensions::alpn::AlpnProtocols;
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct ApplicationSettingsPayload {
     pub protocol: AlpnProtocols, // length = u8
     pub settings: Bytes, // length = u16

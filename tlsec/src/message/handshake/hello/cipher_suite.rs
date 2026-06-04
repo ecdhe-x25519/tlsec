@@ -1,8 +1,8 @@
-use crate::encryption::*;
+use crate::message::handshake::grease::is_grease_u16;
 
-use crate::message::*;
+use crate::encryption::cipher_suite::{AnyCipher, TlsCipher};
 
-use crate::error::*;
+use crate::error::Error;
 
 use ring::hkdf::{self, HKDF_SHA256, HKDF_SHA384};
 use ring::digest::{self, SHA256, SHA384};
@@ -45,7 +45,15 @@ pub enum SupportedCipherSuite {
 }
 
 impl SupportedCipherSuite {
-    pub fn key_len(&self) -> usize {
+    pub fn hkdf_based_key_len(&self) -> usize {
+        match self {
+            Self::ChaCha20 => 32,
+            Self::Aes128 => 32,
+            Self::Aes256 => 48,
+        }
+    }
+
+    pub fn true_key_len(&self) -> usize {
         match self {
             Self::ChaCha20 => 32,
             Self::Aes128 => 16,

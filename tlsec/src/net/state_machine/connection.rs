@@ -1,24 +1,20 @@
 use std::mem::replace;
 
-use crate::message::*;
-
+use crate::error::Error;
+use crate::message::alert::AlertDescription;
+use crate::message::record::RecordType;
+use crate::message::version::Version;
+use crate::message::handshake::messages::HandshakeMessage;
 use crate::net::acceptor::ServerStart;
 use crate::net::connector::ClientStart;
-
-use crate::error::*;
-
-use super::state::{State, NextState};
-
-use super::context::Context;
-
-use super::deframer::{MessageDeframer, PlainMessage, OpaqueMessage};
-
-use super::*;
+use crate::net::state_machine::configs::*;
+use crate::net::state_machine::context::Context;
+use crate::net::state_machine::deframer::*;
+use crate::net::state_machine::side::*;
+use crate::net::state_machine::state::*;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-use tokio::net::TcpStream;
-use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::net::{TcpStream, tcp::{OwnedReadHalf, OwnedWriteHalf}};
 
 use bytes::*;
 

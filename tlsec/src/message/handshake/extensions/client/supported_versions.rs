@@ -1,8 +1,11 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+use crate::message::version::Version;
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct SupportedVersionsClient {
     pub versions: Vec<Version>, // length = u8
 }

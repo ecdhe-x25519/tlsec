@@ -1,8 +1,10 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct CompressCertificatePayload {
     pub algorithms: Vec<CompressionAlgorithm>, // length = u8
 }
@@ -37,7 +39,7 @@ impl Serialize for CompressCertificatePayload {
 }
 
 #[repr(u16)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompressionAlgorithm {
     Zlib = 0x01,
     Brotli = 0x02,

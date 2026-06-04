@@ -1,8 +1,9 @@
-use crate::message::*;
+use crate::message::serialize::Serialize;
 use crate::error::*;
 
 use bytes::*;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AlertPayload {
     pub level: AlertLevel,
     pub description: AlertDescription,
@@ -119,5 +120,21 @@ impl TryFrom<u8> for AlertDescription {
 
 #[cfg(test)]
 mod test_alert_parse {
-    
+    use super::*;
+
+    #[test]
+    fn alert_parse() {
+        let mut buf: BytesMut = BytesMut::new();
+
+        let alert: AlertPayload = AlertPayload {
+            level: AlertLevel::Fatal,
+            description: AlertDescription::AccessDenied,
+        };
+
+        alert.encode(&mut buf);
+
+        let decoded: AlertPayload = AlertPayload::decode(&mut buf).unwrap();
+
+        assert_eq!(alert, decoded);
+    }
 }

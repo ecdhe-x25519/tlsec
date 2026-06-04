@@ -1,8 +1,10 @@
-use crate::message::*;
+use crate::message::version::Version;
+use crate::message::record::RecordType;
+use crate::message::alert::AlertDescription;
 
 use crate::error::Error;
 
-use bytes::{BytesMut, BufMut, Buf};
+use bytes::*;
 
 pub const TLS_RECORD_HEADER_SIZE: usize = 5;
 

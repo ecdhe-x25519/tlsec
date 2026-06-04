@@ -1,8 +1,10 @@
-use crate::message::*;
-use crate::error::*;
+use crate::message::serialize::Serialize;
+
+use crate::error::Error;
 
 use bytes::*;
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct EcPointFormatsPayload {
     pub formats: Vec<EcPointFormat>, // length = u8
 }
@@ -37,7 +39,7 @@ impl Serialize for EcPointFormatsPayload {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EcPointFormat {
     Uncompressed = 0x00,
     AnsiX962CompressedPrime = 0x01,
