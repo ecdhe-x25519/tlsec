@@ -4,7 +4,7 @@ use crate::message::handshake::extensions::certificate::authorities::Certificate
 use crate::message::handshake::extensions::certificate::oid_filter::OidFiltersPayload;
 use crate::message::handshake::extensions::certificate::sig_algo_cert::SignatureAlgorithmsCertPayload;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -30,24 +30,24 @@ impl Serialize for CertificateRequestPayload {
         buf[ext_len_pos..ext_len_pos+2].copy_from_slice(&ext_len.to_be_bytes());
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
         
         let ctx_len: usize = buf.get_u8() as usize;
         if buf.remaining() < ctx_len {
-            return Err(Error::Incomplete(ctx_len - buf.remaining()));
+            return Err(TlsError::Incomplete(ctx_len - buf.remaining()));
         }
         let certificate_request_context: Bytes = buf.split_to(ctx_len).freeze();
 
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
         
         let ext_len: usize = buf.get_u16() as usize;
         if buf.remaining() < ext_len {
-            return Err(Error::Incomplete(ext_len - buf.remaining()));
+            return Err(TlsError::Incomplete(ext_len - buf.remaining()));
         }
         
         let mut ext_buf: BytesMut = buf.split_to(ext_len);
@@ -90,12 +90,12 @@ impl Serialize for CertificateRequestExtension {
         buf[len_pos..len_pos+2].copy_from_slice(&len.to_be_bytes())
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         let extension_type: CertificateRequestExtensionType = CertificateRequestExtensionType::try_from(buf.get_u16())?;
         let length: usize = buf.get_u16() as usize;
 
         if buf.remaining() < length {
-            return Err(Error::Incomplete(length - buf.remaining()));
+            return Err(TlsError::Incomplete(length - buf.remaining()));
         }
 
         let mut data_buf: BytesMut = buf.split_to(length);
@@ -118,7 +118,7 @@ pub enum CertificateRequestExtensionType {
 }
 
 impl TryFrom<u16> for CertificateRequestExtensionType {
-    type Error = Error;
+    type Error = TlsError;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
@@ -126,7 +126,7 @@ impl TryFrom<u16> for CertificateRequestExtensionType {
             0x002F => Ok(Self::CertificateAuthorities),
             0x0030 => Ok(Self::OidFilters),
             0x0032 => Ok(Self::SignatureAlgorithmsCert),
-            _ => Err(Error::Unknown("certificate request extension")),
+            _ => Err(TlsError::Unknown("certificate request extension")),
         }
     }
 }
@@ -149,7 +149,7 @@ impl CertificateRequestExtensionPayload {
         }
     }
 
-    pub fn decode_payload(extension_type: CertificateRequestExtensionType, buf: &mut BytesMut) -> Result<Self, Error> {
+    pub fn decode_payload(extension_type: CertificateRequestExtensionType, buf: &mut BytesMut) -> Result<Self, TlsError> {
         match extension_type {
             CertificateRequestExtensionType::SignatureAlgorithms => Ok(Self::SignatureAlgorithms(SignatureAlgorithmsPayload::decode(buf)?)),
             CertificateRequestExtensionType::CertificateAuthorities => Ok(Self::CertificateAuthorities(CertificateAuthoritiesPayload::decode(buf)?)),

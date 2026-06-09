@@ -2,7 +2,7 @@ use crate::message::version::Version;
 use crate::message::record::RecordType;
 use crate::message::alert::AlertDescription;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -57,14 +57,14 @@ impl MessageDeframer {
         self.buffer.extend_from_slice(data);
     }
     
-    pub fn pop(&mut self) -> Result<Option<OpaqueMessage>, Error> {
+    pub fn pop(&mut self) -> Result<Option<OpaqueMessage>, TlsError> {
         if self.buffer.len() < TLS_RECORD_HEADER_SIZE {
             return Ok(None);
         }
         
         let typ: RecordType = match RecordType::try_from(self.buffer[0]) {
             Ok(t) => t,
-            Err(_) => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
+            Err(_) => return Err(TlsError::Alert(AlertDescription::UnexpectedMessage)),
         };
         
         let version: u16 = u16::from_be_bytes([self.buffer[1], self.buffer[2]]);

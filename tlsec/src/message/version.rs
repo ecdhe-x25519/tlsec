@@ -10,15 +10,15 @@ pub enum Version {
 }
 
 impl TryFrom<u16> for Version {
-    type Error = Error;
+    type Error = TlsError;
 
-    fn try_from(value: u16) -> Result<Self, Error> {
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
             0x0301 => Ok(Self::Tls10),
             0x0302 => Ok(Self::Tls11),
             0x0303 => Ok(Self::Tls12),
             0x0304 => Ok(Self::Tls13),
-            _ => Err(Error::Unknown("version")),
+            _ => Err(TlsError::Unknown("version")),
         }
     }
 }

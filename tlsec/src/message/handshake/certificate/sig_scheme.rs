@@ -20,15 +20,15 @@ impl Serialize for SignatureAlgorithmsPayload {
         }
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let list_length: usize = buf.get_u16() as usize;
 
         if buf.remaining() < list_length {
-            return Err(Error::Incomplete(list_length - buf.remaining()));
+            return Err(TlsError::Incomplete(list_length - buf.remaining()));
         }
 
         let mut schemes: Vec<SignatureScheme> = Vec::new();
@@ -55,7 +55,7 @@ pub enum SignatureScheme {
 }
 
 impl TryFrom<u16> for SignatureScheme {
-    type Error = Error;
+    type Error = TlsError;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
@@ -70,7 +70,7 @@ impl TryFrom<u16> for SignatureScheme {
             _ => if is_grease_u16(value) {
                 Ok(Self::Grease)
             } else {
-                Err(Error::Unknown("signature scheme"))
+                Err(TlsError::Unknown("signature scheme"))
             }
         }
     }

@@ -11,11 +11,11 @@ use ring::aead::{
 
 use bytes::BytesMut;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 pub trait AeadAlgorithm<const KEY_LEN: usize, const NONCE_LEN: usize> {
-    fn encrypt(key: &[u8; KEY_LEN], nonce: &[u8; NONCE_LEN], ad: &[u8], data: &mut BytesMut) -> Result<(), Error>;
-    fn decrypt(key: &[u8; KEY_LEN], nonce: &[u8; NONCE_LEN], ad: &[u8], data: &mut BytesMut) -> Result<(), Error>;
+    fn encrypt(key: &[u8; KEY_LEN], nonce: &[u8; NONCE_LEN], ad: &[u8], data: &mut BytesMut) -> Result<(), TlsError>;
+    fn decrypt(key: &[u8; KEY_LEN], nonce: &[u8; NONCE_LEN], ad: &[u8], data: &mut BytesMut) -> Result<(), TlsError>;
 }
 
 macro_rules! impl_aead {
@@ -23,8 +23,8 @@ macro_rules! impl_aead {
         pub struct $name;
         
         impl AeadAlgorithm<$key_len, $nonce_len> for $name {
-            fn encrypt(key: &[u8; $key_len], nonce: &[u8; $nonce_len], ad: &[u8], data: &mut BytesMut) -> Result<(), Error> {
-                let unbound = UnboundKey::new($algo, key).map_err(|e| Error::Crypto(format!("invalid key: {e}")))?;
+            fn encrypt(key: &[u8; $key_len], nonce: &[u8; $nonce_len], ad: &[u8], data: &mut BytesMut) -> Result<(), TlsError> {
+                let unbound = UnboundKey::new($algo, key).map_err(|e| TlsError::Crypto(format!("invalid key: {e}")))?;
                 let key = LessSafeKey::new(unbound);
                 let nonce = Nonce::assume_unique_for_key(*nonce);
                 let aad = Aad::from(ad);
@@ -34,28 +34,28 @@ macro_rules! impl_aead {
                 data.resize(plaintext_len + tag_len, 0);
                 
                 let tag = key.seal_in_place_separate_tag(nonce, aad, &mut data[..plaintext_len])
-                    .map_err(|e| Error::Crypto(format!("encryption error: {e}")))?;
+                    .map_err(|e| TlsError::Crypto(format!("encryption error: {e}")))?;
                 data[plaintext_len..].copy_from_slice(tag.as_ref());
                 Ok(())
             }
 
-            fn decrypt(key: &[u8; $key_len], nonce: &[u8; $nonce_len], ad: &[u8], data: &mut BytesMut) -> Result<(), Error> {
-                let unbound: UnboundKey = UnboundKey::new($algo, key).map_err(|e| Error::Crypto(format!("invalid key: {e}")))?;
+            fn decrypt(key: &[u8; $key_len], nonce: &[u8; $nonce_len], ad: &[u8], data: &mut BytesMut) -> Result<(), TlsError> {
+                let unbound: UnboundKey = UnboundKey::new($algo, key).map_err(|e| TlsError::Crypto(format!("invalid key: {e}")))?;
                 let key: LessSafeKey = LessSafeKey::new(unbound);
                 let nonce: Nonce = Nonce::assume_unique_for_key(*nonce);
                 let aad: Aad<&[u8]> = Aad::from(ad);
                 
                 let tag_len: usize = $algo.tag_len();
                 if data.len() < tag_len {
-                    return Err(Error::Crypto("data too short for tag".to_string()));
+                    return Err(TlsError::Crypto("data too short for tag".to_string()));
                 }
                 
                 let ciphertext_len: usize = data.len() - tag_len;
                 let tag_bytes: BytesMut = data.split_off(ciphertext_len);
-                let tag: Tag = Tag::try_from(tag_bytes.as_ref()).map_err(|e| Error::Crypto(format!("wrong tag length: {e}")))?;
+                let tag: Tag = Tag::try_from(tag_bytes.as_ref()).map_err(|e| TlsError::Crypto(format!("wrong tag length: {e}")))?;
                 
                 let plaintext_len: usize = key.open_in_place_separate_tag(nonce, aad, tag, &mut data[..], 0..)
-                    .map_err(|e| Error::Crypto(format!("decryption failed: {e}")))?
+                    .map_err(|e| TlsError::Crypto(format!("decryption failed: {e}")))?
                     .len();
                 
                 data.truncate(plaintext_len);
@@ -87,12 +87,12 @@ where
         Self { key, iv, _phantom: std::marker::PhantomData }
     }
 
-    pub fn encrypt(&self, seq: u64, buf: &mut BytesMut, ad: &[u8]) -> Result<(), Error> {
+    pub fn encrypt(&self, seq: u64, buf: &mut BytesMut, ad: &[u8]) -> Result<(), TlsError> {
         let nonce: [u8; NONCE_LEN] = self.build_nonce(seq);
         A::encrypt(&self.key, &nonce, ad, buf)
     }
 
-    pub fn decrypt(&self, seq: u64, buf: &mut BytesMut, ad: &[u8]) -> Result<(), Error> {
+    pub fn decrypt(&self, seq: u64, buf: &mut BytesMut, ad: &[u8]) -> Result<(), TlsError> {
         let nonce: [u8; NONCE_LEN] = self.build_nonce(seq);
         A::decrypt(&self.key, &nonce, ad, buf)
     }
@@ -114,7 +114,7 @@ pub enum AnyCipher {
 }
 
 impl AnyCipher {
-    pub fn encrypt(&mut self, seq: u64, buf: &mut BytesMut, ad: &[u8]) -> Result<(), Error> {
+    pub fn encrypt(&mut self, seq: u64, buf: &mut BytesMut, ad: &[u8]) -> Result<(), TlsError> {
         match self {
             AnyCipher::ChaCha20(c) => c.encrypt(seq, buf, ad),
             AnyCipher::Aes128(c) => c.encrypt(seq, buf, ad),
@@ -122,7 +122,7 @@ impl AnyCipher {
         }
     }
 
-    pub fn decrypt(&mut self, seq: u64, buf: &mut BytesMut, ad: &[u8]) -> Result<(), Error> {
+    pub fn decrypt(&mut self, seq: u64, buf: &mut BytesMut, ad: &[u8]) -> Result<(), TlsError> {
         match self {
             AnyCipher::ChaCha20(c) => c.decrypt(seq, buf, ad),
             AnyCipher::Aes128(c) => c.decrypt(seq, buf, ad),

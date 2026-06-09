@@ -1,6 +1,6 @@
 use crate::message::serialize::Serialize;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -17,13 +17,13 @@ pub enum PskKeyExchangeMode {
 }
 
 impl TryFrom<u8> for PskKeyExchangeMode {
-    type Error = Error;
+    type Error = TlsError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x00 => Ok(Self::PskKe),
             0x01 => Ok(Self::PskDheKe),
-            _ => Err(Error::Unknown("PSK exchange mode"))
+            _ => Err(TlsError::Unknown("PSK exchange mode"))
         }
     }
 }
@@ -36,15 +36,15 @@ impl Serialize for PskKeyExchangeModesPayload {
         }
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
         
         let list_length: usize = buf.get_u8() as usize;
 
         if buf.remaining() < list_length {
-            return Err(Error::Incomplete(list_length - buf.remaining()));
+            return Err(TlsError::Incomplete(list_length - buf.remaining()));
         }
 
         let mut modes: Vec<PskKeyExchangeMode> = Vec::new();

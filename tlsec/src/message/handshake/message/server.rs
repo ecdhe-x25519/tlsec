@@ -4,7 +4,7 @@ use crate::message::handshake::certificate::certificate_verify::CertificateVerif
 use crate::message::handshake::encrypted_extensions::EncryptedExtensionsPayload;
 use crate::message::handshake::hello::server::ServerHelloPayload;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -21,7 +21,7 @@ pub enum ServerHandshakeType {
 }
 
 impl TryFrom<u8> for ServerHandshakeType {
-    type Error = Error;
+    type Error = TlsError;
     
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -31,7 +31,7 @@ impl TryFrom<u8> for ServerHandshakeType {
             0x0B => Ok(ServerHandshakeType::Certificate),
             0x0D => Ok(ServerHandshakeType::CertificateRequest),
             0x0F => Ok(ServerHandshakeType::CertificateVerify),
-            _ => Err(Error::Unknown("handshake type")),
+            _ => Err(TlsError::Unknown("handshake type")),
         }
     }
 }
@@ -54,13 +54,13 @@ impl ServerHandshakePayload {
         }
     }
 
-    pub fn decode_payload(handshake_type: ServerHandshakeType, buf: &mut BytesMut) -> Result<Self, Error> {
+    pub fn decode_payload(handshake_type: ServerHandshakeType, buf: &mut BytesMut) -> Result<Self, TlsError> {
         match handshake_type {
             ServerHandshakeType::ServerHello => Ok(Self::ServerHello(ServerHelloPayload::decode(buf)?)),
             ServerHandshakeType::EncryptedExtensions => Ok(Self::EncryptedExtensions(EncryptedExtensionsPayload::decode(buf)?)),
             ServerHandshakeType::Certificate => Ok(Self::Certificate(CertificatePayload::decode(buf)?)),
             ServerHandshakeType::CertificateVerify => Ok(Self::CertificateVerify(CertificateVerifyPayload::decode(buf)?)),
-            _ => Err(Error::Unknown("handshake type")),
+            _ => Err(TlsError::Unknown("handshake type")),
         }
     }
 }

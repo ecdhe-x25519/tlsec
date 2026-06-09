@@ -1,7 +1,7 @@
 use crate::message::serialize::Serialize;
 use crate::message::handshake::grease::is_grease_u16;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use ring::agreement::{self, ECDH_P256, ECDH_P384, X25519};
 
@@ -20,20 +20,20 @@ impl Serialize for KeyShareEntry {
         buf.put_slice(&self.key_exchange);
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let group: NamedGroup = NamedGroup::try_from(buf.get_u16())?;
         
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let key_len: usize = buf.get_u16() as usize;
         if buf.remaining() < key_len {
-            return Err(Error::Incomplete(key_len - buf.remaining()));
+            return Err(TlsError::Incomplete(key_len - buf.remaining()));
         }
 
         let key_exchange: Bytes = buf.split_to(key_len).freeze();
@@ -53,7 +53,7 @@ pub enum NamedGroup {
 }
 
 impl TryFrom<u16> for NamedGroup {
-    type Error = Error;
+    type Error = TlsError;
     
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
@@ -64,7 +64,7 @@ impl TryFrom<u16> for NamedGroup {
             _ => if is_grease_u16(value) {
                 Ok(Self::Grease)
             } else {
-                Err(Error::Unknown("named group"))
+                Err(TlsError::Unknown("named group"))
             }
         }
     }

@@ -1,7 +1,7 @@
 use crate::message::serialize::Serialize;
 use crate::message::handshake::certificate::certificate::{CertificateEntryExtensionPayload, CertificateEntryExtensionType};
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -33,34 +33,34 @@ impl Serialize for SignedCertificateTimestampPayload {
         self.signature.encode(buf);
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
 
         let version: SctVersion = SctVersion::try_from(buf.get_u8())?;
 
         if buf.remaining() < 32 {
-            return Err(Error::Incomplete(32 - buf.remaining()));
+            return Err(TlsError::Incomplete(32 - buf.remaining()));
         }
 
         let mut log_id: [u8; 32] = [0u8; 32];
         buf.copy_to_slice(&mut log_id);
 
         if buf.remaining() < 8 {
-            return Err(Error::Incomplete(8 - buf.remaining()));
+            return Err(TlsError::Incomplete(8 - buf.remaining()));
         }
 
         let timestamp: u64 = buf.get_u64();
 
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let extensions_length: usize = buf.get_u16() as usize;
 
         if buf.remaining() < extensions_length {
-            return Err(Error::Incomplete(extensions_length - buf.remaining()));
+            return Err(TlsError::Incomplete(extensions_length - buf.remaining()));
         }
 
         let mut exts: BytesMut = buf.split_to(extensions_length);
@@ -71,7 +71,7 @@ impl Serialize for SignedCertificateTimestampPayload {
         }
 
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
 
         let signature: DigitallySigned = DigitallySigned::decode(buf)?;
@@ -93,12 +93,12 @@ pub enum SctVersion {
 }
 
 impl TryFrom<u8> for SctVersion {
-    type Error = Error;
+    type Error = TlsError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x00 => Ok(Self::V1),
-            _ => Err(Error::Unknown("SCT version"))
+            _ => Err(TlsError::Unknown("SCT version"))
         }
     }
 }
@@ -117,27 +117,27 @@ impl Serialize for DigitallySigned {
         buf.put_slice(&self.signature);
     }
     
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
 
         let hash_algorithm: SctHashAlgorithm = SctHashAlgorithm::try_from(buf.get_u8())?;
 
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
 
         let signature_algorithm: SctSignatureAlgorithm = SctSignatureAlgorithm::try_from(buf.get_u8())?;
 
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let signature_length: usize = buf.get_u16() as usize;
 
         if buf.remaining() < signature_length {
-            return Err(Error::Incomplete(signature_length - buf.remaining()));
+            return Err(TlsError::Incomplete(signature_length - buf.remaining()));
         }
 
         let signature: Bytes = buf.split_to(signature_length).freeze();
@@ -159,14 +159,14 @@ pub enum SctHashAlgorithm {
 }
 
 impl TryFrom<u8> for SctHashAlgorithm {
-    type Error = Error;
+    type Error = TlsError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x04 => Ok(Self::Sha256),
             0x05 => Ok(Self::Sha384),
             0x06 => Ok(Self::Sha512),
-            _ => Err(Error::Unknown("SCT hash algorithm"))
+            _ => Err(TlsError::Unknown("SCT hash algorithm"))
         }
     }
 }
@@ -179,13 +179,13 @@ pub enum SctSignatureAlgorithm {
 }
 
 impl TryFrom<u8> for SctSignatureAlgorithm {
-    type Error = Error;
+    type Error = TlsError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x01 => Ok(Self::Rsa),
             0x03 => Ok(Self::Ecdsa),
-            _ => Err(Error::Unknown("SCT signature algorithm"))
+            _ => Err(TlsError::Unknown("SCT signature algorithm"))
         }
     }
 }

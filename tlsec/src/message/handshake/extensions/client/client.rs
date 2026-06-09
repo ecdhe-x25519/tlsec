@@ -12,7 +12,7 @@ use crate::message::handshake::extensions::compression_algo::CompressCertificate
 use crate::message::handshake::grease::is_grease_u16;
 use crate::message::serialize::Serialize;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -38,7 +38,7 @@ pub enum ClientExtensionType {
 }
 
 impl TryFrom<u16> for ClientExtensionType {
-    type Error = Error;
+    type Error = TlsError;
     
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
@@ -60,7 +60,7 @@ impl TryFrom<u16> for ClientExtensionType {
             _ => if is_grease_u16(value) {
                 Ok(Self::Grease)
             } else {
-                Err(Error::Unknown("extension"))
+                Err(TlsError::Unknown("extension"))
             }
         }
     }
@@ -108,7 +108,7 @@ impl ClientExtensionPayload {
         }
     }
 
-    pub fn decode_payload(extension_type: ClientExtensionType, buf: &mut BytesMut) -> Result<Self, Error> {
+    pub fn decode_payload(extension_type: ClientExtensionType, buf: &mut BytesMut) -> Result<Self, TlsError> {
         match extension_type {
             ClientExtensionType::ServerName => Ok(Self::ServerName(ServerNamePayload::decode(buf)?)),
             ClientExtensionType::SupportedGroups => Ok(Self::SupportedGroups(SupportedGroupsPayload::decode(buf)?)),

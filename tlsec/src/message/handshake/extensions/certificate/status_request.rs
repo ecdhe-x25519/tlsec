@@ -1,6 +1,6 @@
 use crate::message::serialize::Serialize;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -20,33 +20,33 @@ impl Serialize for StatusRequestPayload {
         buf.put_slice(&self.request_extensions);
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
 
         let status_type: StatusType = StatusType::try_from(buf.get_u8())?;
         
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let responder_len: usize = buf.get_u16() as usize;
 
         if buf.remaining() < responder_len {
-            return Err(Error::Incomplete(responder_len - buf.remaining()));
+            return Err(TlsError::Incomplete(responder_len - buf.remaining()));
         }
 
         let responder_id_list: Bytes = buf.split_to(responder_len).freeze();
         
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let ext_len: usize = buf.get_u16() as usize;
 
         if buf.remaining() < ext_len {
-            return Err(Error::Incomplete(ext_len - buf.remaining()));
+            return Err(TlsError::Incomplete(ext_len - buf.remaining()));
         }
 
         let request_extensions: Bytes = buf.split_to(ext_len).freeze();
@@ -66,12 +66,12 @@ pub enum StatusType {
 }
 
 impl TryFrom<u8> for StatusType {
-    type Error = Error;
+    type Error = TlsError;
     
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x01 => Ok(StatusType::Ocsp),
-            _ => Err(Error::Unknown("status type")),
+            _ => Err(TlsError::Unknown("status type")),
         }
     }
 }

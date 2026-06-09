@@ -5,7 +5,7 @@ use crate::message::record::*;
 use crate::message::version::Version;
 
 #[derive(Debug)]
-pub enum Error {
+pub enum TlsError {
     Unknown(&'static str),
     Unsupported(&'static str),
     Alert(AlertDescription),
@@ -14,7 +14,7 @@ pub enum Error {
     Io(String),
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for TlsError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Unknown(msg) => write!(f, "{}", msg),
@@ -27,9 +27,7 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
-
-impl Error {
+impl TlsError {
     pub fn handle_webpki(error: webpki::Error) -> AlertDescription {
         match error {
             webpki::Error::BadDer => AlertDescription::BadCertificate,
@@ -69,9 +67,4 @@ pub fn build_alert(error: AlertDescription) -> Record {
     };
 
     record
-}
-
-#[cfg(test)]
-mod test_error {
-    
 }

@@ -4,7 +4,7 @@ use crate::message::handshake::hello::cipher_suite::SupportedCipherSuite;
 use crate::message::handshake::message::client::{ClientHandshakePayload, ClientHandshakeType};
 use crate::message::handshake::message::server::{ServerHandshakePayload, ServerHandshakeType};
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -28,9 +28,9 @@ impl HandshakeMessage {
         buf[len_pos..len_pos+3].copy_from_slice(&len.to_be_bytes());
     }
 
-    pub fn decode(buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, Error> {
+    pub fn decode(buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, TlsError> {
         if buf.remaining() < 5 {
-            return Err(Error::Incomplete(5 - buf.remaining()));
+            return Err(TlsError::Incomplete(5 - buf.remaining()));
         }
 
         let start_len: usize = buf.len();
@@ -41,7 +41,7 @@ impl HandshakeMessage {
         let len: usize = u32::from_be_bytes([0, length[0], length[1], length[2]]) as usize;
         
         if buf.remaining() < len {
-            return Err(Error::Incomplete(len - buf.remaining()));
+            return Err(TlsError::Incomplete(len - buf.remaining()));
         }
 
         let mut payload_buf: BytesMut = buf.split_to(len);
@@ -75,7 +75,7 @@ impl Into<u8> for HandshakeType {
 }
 
 impl TryFrom<u8> for HandshakeType {
-    type Error = Error;
+    type Error = TlsError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         if let Ok(typ) = ServerHandshakeType::try_from(value) {
@@ -86,7 +86,7 @@ impl TryFrom<u8> for HandshakeType {
             return Ok(HandshakeType::Client(typ));
         }
         
-        Err(Error::Unknown("handshake side"))
+        Err(TlsError::Unknown("handshake side"))
     }
 }
 
@@ -106,7 +106,7 @@ impl HandshakePayload {
         }
     }
 
-    pub fn decode_payload(extension_type: HandshakeType, buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, Error> {
+    pub fn decode_payload(extension_type: HandshakeType, buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, TlsError> {
         match extension_type {
             HandshakeType::Common(z) => Ok(Self::Common(CommonHandshakePayload::decode_payload(z, buf, cipher_suite)?)),
             HandshakeType::Client(z) => Ok(Self::Client(ClientHandshakePayload::decode_payload(z, buf)?)),
@@ -123,13 +123,13 @@ pub enum CommonHandshakeType {
 }
 
 impl TryFrom<u8> for CommonHandshakeType {
-    type Error = Error;
+    type Error = TlsError;
     
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x14 => Ok(Self::Finished),
             0x18 => Ok(Self::KeyUpdate),
-            _ => Err(Error::Unknown("handshake type")),
+            _ => Err(TlsError::Unknown("handshake type")),
         }
     }
 }
@@ -148,7 +148,7 @@ impl CommonHandshakePayload {
         }
     }
 
-    pub fn decode_payload(handshake_type: CommonHandshakeType, buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, Error> {
+    pub fn decode_payload(handshake_type: CommonHandshakeType, buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, TlsError> {
         match handshake_type {
             CommonHandshakeType::Finished => Ok(CommonHandshakePayload::Finished(FinishedPayload::decode(buf, cipher_suite)?)),
             CommonHandshakeType::KeyUpdate => Ok(CommonHandshakePayload::KeyUpdate(KeyUpdatePayload::decode(buf)?)),
@@ -166,14 +166,14 @@ impl FinishedPayload {
         buf.put_slice(&self.verify_data);
     }
 
-    fn decode(buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, TlsError> {
         let cipher_suite: usize = match cipher_suite {
             Some(cs) => cs.hash_len(),
-            None => return Err(Error::Crypto(format!("cipher suite not set"))),
+            None => return Err(TlsError::Crypto(format!("cipher suite not set"))),
         };
 
         if buf.remaining() < cipher_suite {
-            return Err(Error::Incomplete(cipher_suite - buf.remaining()));
+            return Err(TlsError::Incomplete(cipher_suite - buf.remaining()));
         }
         
         let verify_data: Bytes = buf.split_to(cipher_suite).freeze();
@@ -192,7 +192,7 @@ impl Serialize for KeyUpdatePayload {
         buf.put_u8(self.request_update as u8);
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         let request_update: KeyUpdateRequest = KeyUpdateRequest::try_from(buf.get_u8())?;
         Ok(Self {
             request_update,
@@ -208,13 +208,13 @@ pub enum KeyUpdateRequest {
 }
 
 impl TryFrom<u8> for KeyUpdateRequest {
-    type Error = Error;
+    type Error = TlsError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x00 => Ok(KeyUpdateRequest::UpdateNotRequested),
             0x01 => Ok(KeyUpdateRequest::UpdateRequested),
-            _ => Err(Error::Alert(AlertDescription::MissingExtension))
+            _ => Err(TlsError::Alert(AlertDescription::MissingExtension))
         }
     }
 }

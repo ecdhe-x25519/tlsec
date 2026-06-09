@@ -1,6 +1,6 @@
 use std::mem::replace;
 
-use crate::error::Error;
+use crate::error::TlsError;
 use crate::message::alert::AlertDescription;
 use crate::message::record::RecordType;
 use crate::message::version::Version;
@@ -20,8 +20,8 @@ use bytes::*;
 
 struct Placeholder;
 impl<S: Side> State<S> for Placeholder {
-    fn handle(self: Box<Self>, _ctx: &mut Context<S>, _msg: HandshakeMessage) -> Result<NextState<S>, Error> {
-        Err(Error::Alert(AlertDescription::UnexpectedMessage))
+    fn handle(self: Box<Self>, _ctx: &mut Context<S>, _msg: HandshakeMessage) -> Result<NextState<S>, TlsError> {
+        Err(TlsError::Alert(AlertDescription::UnexpectedMessage))
     }
 }
 
@@ -84,10 +84,10 @@ impl TlsConnection<ServerSide> {
 }
 
 impl<S: Side> TlsConnection<S> {
-    pub async fn read_tls(&mut self) -> Result<(), Error> {
+    pub async fn read_tls(&mut self) -> Result<(), TlsError> {
         let n: usize = self.read_stream.read_buf(&mut self.read_buf)
             .await
-            .map_err(|e| Error::Io(format!("read buf error: {e}")))?;
+            .map_err(|e| TlsError::Io(format!("read buf error: {e}")))?;
 
         if n == 0 && self.read_buf.is_empty() {
             return Ok(());
@@ -121,7 +121,7 @@ impl<S: Side> TlsConnection<S> {
                     // self.pending_data = Some(plain.payload);
                 }
                 RecordType::Alert => {
-                    return Err(Error::Alert(AlertDescription::AccessDenied));
+                    return Err(TlsError::Alert(AlertDescription::AccessDenied));
                 }
             }
         }
@@ -129,14 +129,14 @@ impl<S: Side> TlsConnection<S> {
         Ok(())
     }
 
-    pub async fn write_tls(&mut self) -> Result<(), Error> {
+    pub async fn write_tls(&mut self) -> Result<(), TlsError> {
         if self.write_buf.is_empty() {
             return Ok(());
         }
         
         self.write_stream.write_all(&self.write_buf)
             .await
-            .map_err(|e| Error::Io(format!("write buf error: {e}")))?;
+            .map_err(|e| TlsError::Io(format!("write buf error: {e}")))?;
 
         self.write_buf.clear();
         Ok(())

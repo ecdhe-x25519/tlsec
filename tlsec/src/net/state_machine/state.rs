@@ -16,7 +16,7 @@ use crate::net::state_machine::context::Context;
 use crate::net::state_machine::record_layer::RecordLayer;
 use crate::net::state_machine::side::Side;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use ring::agreement::EphemeralPrivateKey;
 use ring::digest::SHA256;
@@ -41,7 +41,7 @@ pub struct CommonState {
     pub shared_key: Option<Vec<u8>>,
     pub pre_shared_key: Option<Vec<u8>>,
     pub peer_public_key: Option<Bytes>,
-    pub error: Option<Error>,
+    pub error: Option<TlsError>,
     pub handshake_complete: bool,
     pub closed: bool,
 }
@@ -72,9 +72,9 @@ impl CommonState {
         }
     }
 
-    pub fn gen_keypair(&mut self) -> Result<(), Error> {
+    pub fn gen_keypair(&mut self) -> Result<(), TlsError> {
         let algo: SupportedNamedGroup = self.named_group
-            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+            .ok_or(TlsError::Alert(AlertDescription::HandshakeFailure))?;
 
         let rand: &Random = get_random();
         let (private_key, public_key) = generate_key_pair(rand, &algo)?;
@@ -85,13 +85,13 @@ impl CommonState {
         Ok(())
     }
 
-    pub fn compute_secret(&mut self) -> Result<(), Error> {
+    pub fn compute_secret(&mut self) -> Result<(), TlsError> {
         let private_key: EphemeralPrivateKey = self.private_key.take()
-            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+            .ok_or(TlsError::Alert(AlertDescription::HandshakeFailure))?;
         let peer_public_key: Bytes = self.peer_public_key.take()
-            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+            .ok_or(TlsError::Alert(AlertDescription::HandshakeFailure))?;
         let algo: SupportedNamedGroup = self.named_group
-            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+            .ok_or(TlsError::Alert(AlertDescription::HandshakeFailure))?;
 
         let shared: Vec<u8> = compute_shared_secret(private_key, &peer_public_key, &algo)?;
 
@@ -100,9 +100,9 @@ impl CommonState {
         Ok(())
     }
 
-    pub fn set_handshake_keys(&mut self) -> Result<(), Error> {
+    pub fn set_handshake_keys(&mut self) -> Result<(), TlsError> {
         let cipher_suite: &SupportedCipherSuite = self.cipher_suite.as_ref()
-            .ok_or(Error::Crypto(format!("cipher suite is not set")))?;
+            .ok_or(TlsError::Crypto(format!("cipher suite is not set")))?;
 
         let mut psk: Option<&[u8]> = None;
 
@@ -111,7 +111,7 @@ impl CommonState {
         };
 
         let pbk: &Bytes = self.peer_public_key.as_ref()
-            .ok_or(Error::Crypto(format!("pbk is not set")))?;
+            .ok_or(TlsError::Crypto(format!("pbk is not set")))?;
 
         let transcript: &TranscriptHash = &self.transcript;
 
@@ -123,9 +123,9 @@ impl CommonState {
         ))
     }
 
-    pub fn set_application_keys(&mut self) -> Result<(), Error> {
+    pub fn set_application_keys(&mut self) -> Result<(), TlsError> {
         let cipher_suite: &SupportedCipherSuite = self.cipher_suite.as_ref()
-            .ok_or(Error::Crypto(format!("cipher suite is not set")))?;
+            .ok_or(TlsError::Crypto(format!("cipher suite is not set")))?;
 
         let mut psk: Option<&[u8]> = None;
 
@@ -134,7 +134,7 @@ impl CommonState {
         };
 
         let pbk: &Bytes = self.peer_public_key.as_ref()
-            .ok_or(Error::Crypto(format!("pbk is not set")))?;
+            .ok_or(TlsError::Crypto(format!("pbk is not set")))?;
 
         Ok(self.application_keys = Some(ApplicationKeys::derive_application_keys(
             cipher_suite,
@@ -151,7 +151,7 @@ impl CommonState {
         self.handshake_complete = true;
     }
 
-    pub fn set_error(&mut self, err: Error) {
+    pub fn set_error(&mut self, err: TlsError) {
         self.error = Some(err);
         self.closed = true;
     }
@@ -162,7 +162,7 @@ pub trait State<S: Side>: Send + Sync + 'static {
         self: Box<Self>,
         ctx: &mut Context<S>,
         msg: HandshakeMessage,
-    ) -> Result<NextState<S>, Error>;
+    ) -> Result<NextState<S>, TlsError>;
 }
 
 pub struct NextState<S: Side> {

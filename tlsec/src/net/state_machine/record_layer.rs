@@ -1,7 +1,7 @@
 use crate::encryption::cipher_suite::AnyCipher;
 use super::deframer::{OpaqueMessage, PlainMessage};
 use crate::message::record::RecordType;
-use crate::error::Error;
+use crate::error::TlsError;
 
 #[derive(PartialEq)]
 pub enum DirectionState {
@@ -53,10 +53,10 @@ impl RecordLayer {
         }
     }
     
-    pub fn decrypt_incoming(&mut self, msg: OpaqueMessage) -> Result<PlainMessage, Error> {
+    pub fn decrypt_incoming(&mut self, msg: OpaqueMessage) -> Result<PlainMessage, TlsError> {
         match self.decrypt_state {
             DirectionState::Active => {
-                let cipher: &mut AnyCipher = self.decrypter.as_mut().ok_or(Error::Crypto("no decrypter".to_string()))?;
+                let cipher: &mut AnyCipher = self.decrypter.as_mut().ok_or(TlsError::Crypto("no decrypter".to_string()))?;
                 let ad: [u8; 13] = Self::build_ad(self.write_seq, msg.typ, msg.version as u16, msg.payload.len());
 
                 let mut payload: bytes::BytesMut = msg.payload;
@@ -80,10 +80,10 @@ impl RecordLayer {
         }
     }
     
-    pub fn encrypt_outgoing(&mut self, msg: PlainMessage) -> Result<OpaqueMessage, Error> {
+    pub fn encrypt_outgoing(&mut self, msg: PlainMessage) -> Result<OpaqueMessage, TlsError> {
         match self.encrypt_state {
             DirectionState::Active => {
-                let cipher: &mut AnyCipher = self.encrypter.as_mut().ok_or(Error::Crypto("no encrypter".to_string()))?;
+                let cipher: &mut AnyCipher = self.encrypter.as_mut().ok_or(TlsError::Crypto("no encrypter".to_string()))?;
                 let ad: [u8; 13] = Self::build_ad(self.write_seq, msg.typ, msg.version as u16, msg.payload.len());
 
                 let mut payload: bytes::BytesMut = msg.payload;

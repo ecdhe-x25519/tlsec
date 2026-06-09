@@ -1,6 +1,6 @@
 use crate::message::serialize::Serialize;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -17,15 +17,15 @@ impl Serialize for CompressCertificatePayload {
         }
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
 
         let list_length: usize = buf.get_u8() as usize;
 
         if buf.remaining() < list_length * 2 {
-            return Err(Error::Incomplete(list_length * 2 - buf.remaining()));
+            return Err(TlsError::Incomplete(list_length * 2 - buf.remaining()));
         }
 
         let mut algorithms: Vec<CompressionAlgorithm> = Vec::new();
@@ -46,13 +46,13 @@ pub enum CompressionAlgorithm {
 }
 
 impl TryFrom<u8> for CompressionAlgorithm {
-    type Error = Error;
+    type Error = TlsError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x01 => Ok(Self::Zlib),
             0x02 => Ok(Self::Brotli),
-            _ => Err(Error::Unknown("compression algorithm"))
+            _ => Err(TlsError::Unknown("compression algorithm"))
         }
     }
 }

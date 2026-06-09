@@ -1,7 +1,7 @@
 use crate::message::handshake::certificate::sig_scheme::SignatureScheme;
 use crate::message::serialize::Serialize;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -18,21 +18,21 @@ impl Serialize for CertificateVerifyPayload {
         buf.put_slice(&self.signature);
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let algorithm: SignatureScheme = SignatureScheme::try_from(buf.get_u16())?;
 
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let length: usize = buf.get_u16() as usize;
 
         if buf.remaining() < length {
-            return Err(Error::Incomplete(length - buf.remaining()));
+            return Err(TlsError::Incomplete(length - buf.remaining()));
         }
 
         let signature: Bytes = buf.split_to(length).freeze();

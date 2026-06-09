@@ -1,6 +1,6 @@
 use ring::hkdf::{self, Prk, Salt};
 
-use crate::error::Error;
+use crate::error::TlsError;
 use super::cipher_suite::*;
 use super::transcript::TranscriptHash;
 
@@ -17,7 +17,7 @@ impl HandshakeKeys {
         psk: Option<&[u8]>,
         shared_secret: &[u8],
         transcript: &TranscriptHash,
-    ) -> Result<HandshakeKeys, Error> {
+    ) -> Result<HandshakeKeys, TlsError> {
         let algo: hkdf::Algorithm = cipher_suite.hkdf_algorithm();
 
         let key_len: usize = cipher_suite.hkdf_based_key_len();
@@ -32,25 +32,25 @@ impl HandshakeKeys {
         
         let mut derived_early: Vec<u8> = vec![0u8; hash_len];
         early_secret.expand(&[b"derived"], algo)
-            .map_err(|e| Error::Crypto(format!("early secret expand failed: {e}")))?
+            .map_err(|e| TlsError::Crypto(format!("early secret expand failed: {e}")))?
             .fill(&mut derived_early)
-            .map_err(|e| Error::Crypto(format!("early secret fill error: {e}")))?;
+            .map_err(|e| TlsError::Crypto(format!("early secret fill error: {e}")))?;
         
         let handshake_secret: Prk = Salt::new(algo, shared_secret).extract(&derived_early);
     
         let context: Vec<u8> = transcript.hash();
         
         let client_key_shit: Vec<u8> = hkdf_expand_label(&handshake_secret, b"c hs traffic key", &context, algo, key_len)?;
-        let client_key: Vec<u8> = client_key_shit[..true_kl].try_into().map_err(|e| Error::Crypto(format!("key error: {e}")))?;
+        let client_key: Vec<u8> = client_key_shit[..true_kl].try_into().map_err(|e| TlsError::Crypto(format!("key error: {e}")))?;
 
         let client_iv_shit: Vec<u8> = hkdf_expand_label(&handshake_secret, b"c hs traffic iv", &context, algo, key_len)?;
-        let client_iv: Vec<u8> = client_iv_shit[..iv_len].try_into().map_err(|e| Error::Crypto(format!("C HS IV error: {e}")))?;
+        let client_iv: Vec<u8> = client_iv_shit[..iv_len].try_into().map_err(|e| TlsError::Crypto(format!("C HS IV error: {e}")))?;
 
         let server_key_shit: Vec<u8> = hkdf_expand_label(&handshake_secret, b"s hs traffic key", &context, algo, key_len)?;
-        let server_key: Vec<u8> = server_key_shit[..true_kl].try_into().map_err(|e| Error::Crypto(format!("key error: {e}")))?;
+        let server_key: Vec<u8> = server_key_shit[..true_kl].try_into().map_err(|e| TlsError::Crypto(format!("key error: {e}")))?;
 
         let server_iv_shit: Vec<u8> = hkdf_expand_label(&handshake_secret, b"s hs traffic iv", &context, algo, key_len)?;
-        let server_iv: Vec<u8> = server_iv_shit[..iv_len].try_into().map_err(|e| Error::Crypto(format!("C HS IV error: {e}")))?;
+        let server_iv: Vec<u8> = server_iv_shit[..iv_len].try_into().map_err(|e| TlsError::Crypto(format!("C HS IV error: {e}")))?;
 
         Ok(Self {
             client: cipher_suite.create_cipher(client_key, client_iv)?,
@@ -69,7 +69,7 @@ impl ApplicationKeys {
         cipher_suite: &SupportedCipherSuite,
         psk: Option<&[u8]>,
         shared_secret: &[u8],
-    ) -> Result<ApplicationKeys, Error> {
+    ) -> Result<ApplicationKeys, TlsError> {
         let algo: hkdf::Algorithm = cipher_suite.hkdf_algorithm();
     
         let key_len: usize = cipher_suite.hkdf_based_key_len();
@@ -84,30 +84,30 @@ impl ApplicationKeys {
 
         let mut derived_early: Vec<u8> = vec![0u8; hash_len];
         early_secret.expand(&[b"derived"], algo)
-            .map_err(|e| Error::Crypto(format!("early secret expand failed: {e}")))?
+            .map_err(|e| TlsError::Crypto(format!("early secret expand failed: {e}")))?
             .fill(&mut derived_early)
-            .map_err(|e| Error::Crypto(format!("early secret fill error: {e}")))?;
+            .map_err(|e| TlsError::Crypto(format!("early secret fill error: {e}")))?;
 
         let handshake_secret: Prk = Salt::new(algo, shared_secret).extract(&derived_early);
 
         let mut derived: Vec<u8> = vec![0u8; hash_len];
         handshake_secret.expand(&[b"derived"], algo)
-            .map_err(|e| Error::Crypto(format!("master secret expand error: {e}")))?
+            .map_err(|e| TlsError::Crypto(format!("master secret expand error: {e}")))?
             .fill(&mut derived)
-            .map_err(|e| Error::Crypto(format!("master secret fill error: {e}")))?;
+            .map_err(|e| TlsError::Crypto(format!("master secret fill error: {e}")))?;
         let master_secret: Prk = Salt::new(algo, &[]).extract(&derived);
 
         let client_key_shit: Vec<u8> = hkdf_expand_label(&master_secret, b"c ap traffic key", b"", algo, key_len)?;
-        let client_key: Vec<u8> = client_key_shit[..true_kl].try_into().map_err(|e| Error::Crypto(format!("key error: {e}")))?;
+        let client_key: Vec<u8> = client_key_shit[..true_kl].try_into().map_err(|e| TlsError::Crypto(format!("key error: {e}")))?;
 
         let client_iv_shit: Vec<u8> = hkdf_expand_label(&master_secret, b"c ap traffic iv", b"", algo, key_len)?;
-        let client_iv: Vec<u8> = client_iv_shit[..iv_len].try_into().map_err(|e| Error::Crypto(format!("C HS IV error: {e}")))?;
+        let client_iv: Vec<u8> = client_iv_shit[..iv_len].try_into().map_err(|e| TlsError::Crypto(format!("C HS IV error: {e}")))?;
 
         let server_key_shit: Vec<u8> = hkdf_expand_label(&master_secret, b"s ap traffic key", b"", algo, key_len)?;
-        let server_key: Vec<u8> = server_key_shit[..true_kl].try_into().map_err(|e| Error::Crypto(format!("key error: {e}")))?;
+        let server_key: Vec<u8> = server_key_shit[..true_kl].try_into().map_err(|e| TlsError::Crypto(format!("key error: {e}")))?;
 
         let server_iv_shit: Vec<u8> = hkdf_expand_label(&master_secret, b"s ap traffic iv", b"", algo, key_len)?;
-        let server_iv: Vec<u8> = server_iv_shit[..iv_len].try_into().map_err(|e| Error::Crypto(format!("C HS IV error: {e}")))?;
+        let server_iv: Vec<u8> = server_iv_shit[..iv_len].try_into().map_err(|e| TlsError::Crypto(format!("C HS IV error: {e}")))?;
 
         Ok(Self {
             client: cipher_suite.create_cipher(client_key, client_iv)?,
@@ -122,7 +122,7 @@ fn hkdf_expand_label(
     context: &[u8], 
     algorithm: hkdf::Algorithm,
     length: usize,
-) -> Result<Vec<u8>, Error> {
+) -> Result<Vec<u8>, TlsError> {
     let mut info: Vec<u8> = Vec::new();
     info.extend_from_slice(&(length as u16).to_be_bytes());
     info.push((label.len() + 6) as u8);
@@ -133,11 +133,11 @@ fn hkdf_expand_label(
 
     let binding: [&[u8]; 1] = [&info];
     let okm: hkdf::Okm<'_, hkdf::Algorithm> = prk.expand(&binding, algorithm)
-        .map_err(|e| Error::Crypto(format!("OKM error: {e}")))?;
+        .map_err(|e| TlsError::Crypto(format!("OKM error: {e}")))?;
 
     let mut out: Vec<u8> = vec![0u8; length];
     okm.fill(&mut out)
-    .map_err(|e| Error::Crypto(format!("OKM fill error: {e}")))?;
+    .map_err(|e| TlsError::Crypto(format!("OKM fill error: {e}")))?;
     
     Ok(out)
 }

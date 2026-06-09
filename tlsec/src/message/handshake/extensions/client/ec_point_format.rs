@@ -1,6 +1,6 @@
 use crate::message::serialize::Serialize;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -17,15 +17,15 @@ impl Serialize for EcPointFormatsPayload {
         }
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
 
         let list_length: usize = buf.get_u8() as usize;
 
         if buf.remaining() < list_length {
-            return Err(Error::Incomplete(list_length - buf.remaining()));
+            return Err(TlsError::Incomplete(list_length - buf.remaining()));
         }
 
         let mut formats: Vec<EcPointFormat> = Vec::new();
@@ -47,14 +47,14 @@ pub enum EcPointFormat {
 }
 
 impl TryFrom<u8> for EcPointFormat {
-    type Error = Error;
+    type Error = TlsError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x00 => Ok(Self::Uncompressed),
             0x01 => Ok(Self::AnsiX962CompressedPrime),
             0x02 => Ok(Self::AnsiX962CompressedChar2),
-            _ => Err(Error::Unknown("EC point format"))
+            _ => Err(TlsError::Unknown("EC point format"))
         }
     }
 }

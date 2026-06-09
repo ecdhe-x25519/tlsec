@@ -1,6 +1,6 @@
 use crate::message::serialize::Serialize;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -19,15 +19,15 @@ impl Serialize for AlpnPayload {
         buf.put_slice(&inner);
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let list_length: usize = buf.get_u16() as usize;
 
         if buf.remaining() < list_length {
-            return Err(Error::Incomplete(list_length - buf.remaining()));
+            return Err(TlsError::Incomplete(list_length - buf.remaining()));
         }
 
         let mut data: BytesMut = buf.split_to(list_length);
@@ -58,15 +58,15 @@ impl Serialize for AlpnProtocol {
         buf.put_slice(proto_bytes);
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
 
         let len: usize = buf.get_u8() as usize;
 
         if buf.remaining() < len {
-            return Err(Error::Incomplete(len - buf.remaining()));
+            return Err(TlsError::Incomplete(len - buf.remaining()));
         }
 
         let name: AlpnProtocols = AlpnProtocols::try_from(buf.split_to(len))?;
@@ -83,14 +83,14 @@ pub enum AlpnProtocols {
 }
 
 impl TryFrom<BytesMut> for AlpnProtocols {
-    type Error = Error;
+    type Error = TlsError;
 
     fn try_from(value: BytesMut) -> Result<Self, Self::Error> {
         match value.as_ref() {
             b"http/1.1" => Ok(AlpnProtocols::Http11),
             b"h2" => Ok(AlpnProtocols::H2),
             b"h3" => Ok(AlpnProtocols::H3),
-            _ => Err(Error::Unknown("ALPN protocol")),
+            _ => Err(TlsError::Unknown("ALPN protocol")),
         }
     }
 }

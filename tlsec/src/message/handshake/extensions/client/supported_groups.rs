@@ -1,7 +1,7 @@
 use crate::message::serialize::Serialize;
 use crate::message::handshake::extensions::key_share::NamedGroup;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -18,15 +18,15 @@ impl Serialize for SupportedGroupsPayload {
         }
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()))
+            return Err(TlsError::Incomplete(2 - buf.remaining()))
         }
 
         let list_length: usize = buf.get_u16() as usize;
 
         if buf.remaining() < list_length {
-            return Err(Error::Incomplete(list_length - buf.remaining()))
+            return Err(TlsError::Incomplete(list_length - buf.remaining()))
         }
 
         let mut groups: Vec<NamedGroup> = Vec::new();

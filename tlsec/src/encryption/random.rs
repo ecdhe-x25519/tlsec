@@ -14,9 +14,9 @@ impl Random {
         Self(rand)
     }
 
-    pub fn ochkagen(&self, arr: &mut [u8]) -> Result<(), Error> {
+    pub fn ochkagen(&self, arr: &mut [u8]) -> Result<(), TlsError> {
         self.0.fill(arr)
-            .map_err(|e| Error::Crypto(format!("secure random failed: {e}")))?;
+            .map_err(|e| TlsError::Crypto(format!("secure random failed: {e}")))?;
         Ok(())
     }
 }

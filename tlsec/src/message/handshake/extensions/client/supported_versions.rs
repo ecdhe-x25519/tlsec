@@ -1,7 +1,7 @@
 use crate::message::serialize::Serialize;
 use crate::message::version::Version;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -18,15 +18,15 @@ impl Serialize for SupportedVersionsClient {
         }
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
 
         let list_length: usize = buf.get_u8() as usize;
 
         if buf.remaining() < list_length {
-            return Err(Error::Incomplete(list_length - buf.remaining()));
+            return Err(TlsError::Incomplete(list_length - buf.remaining()));
         }
 
         let mut versions: Vec<Version> = Vec::new();

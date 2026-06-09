@@ -3,7 +3,7 @@ use crate::message::handshake::certificate::certificate::CertificatePayload;
 use crate::message::handshake::certificate::certificate_verify::CertificateVerifyPayload;
 use crate::message::handshake::hello::client::ClientHelloPayload;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -17,7 +17,7 @@ pub enum ClientHandshakeType {
 }
 
 impl TryFrom<u8> for ClientHandshakeType {
-    type Error = Error;
+    type Error = TlsError;
     
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -25,7 +25,7 @@ impl TryFrom<u8> for ClientHandshakeType {
             0x05 => Ok(ClientHandshakeType::EndOfEarlyData),
             0x0B => Ok(ClientHandshakeType::Certificate),
             0x0F => Ok(ClientHandshakeType::CertificateVerify),
-            _ => Err(Error::Unknown("handshake type")),
+            _ => Err(TlsError::Unknown("handshake type")),
         }
     }
 }
@@ -48,7 +48,7 @@ impl ClientHandshakePayload {
         }
     }
 
-    pub fn decode_payload(handshake_type: ClientHandshakeType, buf: &mut BytesMut) -> Result<Self, Error> {
+    pub fn decode_payload(handshake_type: ClientHandshakeType, buf: &mut BytesMut) -> Result<Self, TlsError> {
         match handshake_type {
             ClientHandshakeType::ClientHello => Ok(Self::ClientHello(ClientHelloPayload::decode(buf)?)),
             ClientHandshakeType::EndOfEarlyData => Ok(Self::EndOfEarlyData),

@@ -9,14 +9,14 @@ pub enum CompressionMethod {
 }
 
 impl TryFrom<u8> for CompressionMethod {
-    type Error = Error;
+    type Error = TlsError;
     
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x00 => Ok(Self::Null),
             0x01 => Ok(Self::DEFLATE),
             0x40 => Ok(Self::LZS),
-            _ => Err(Error::Unknown("compression method"))
+            _ => Err(TlsError::Unknown("compression method"))
         }
     }
 }

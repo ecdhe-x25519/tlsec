@@ -12,15 +12,15 @@ pub const GREASE_U16_VALUES: [u16; 16] = [
     0x8A8A, 0x9A9A, 0xAAAA, 0xBABA, 0xCACA, 0xDADA, 0xEAEA, 0xFAFA,
 ];
 
-pub fn grease_u8(rng: &Random) -> Result<u8, Error> {
+pub fn grease_u8(rng: &Random) -> Result<u8, TlsError> {
     let mut idx: [u8; 1] = [0u8; 1];
-    rng.ochkagen(&mut idx).map_err(|e| Error::Crypto(format!("RNG failed: {e}")))?;
+    rng.ochkagen(&mut idx).map_err(|e| TlsError::Crypto(format!("RNG failed: {e}")))?;
     Ok(GREASE_U8_VALUES[(idx[0] as usize) % 8])
 }
 
-pub fn grease_u16(rng: &Random) -> Result<u16, Error> {
+pub fn grease_u16(rng: &Random) -> Result<u16, TlsError> {
     let mut idx: [u8; 1] = [0u8; 1];
-    rng.ochkagen(&mut idx).map_err(|e| Error::Crypto(format!("RNG failed: {e}")))?;
+    rng.ochkagen(&mut idx).map_err(|e| TlsError::Crypto(format!("RNG failed: {e}")))?;
     Ok(GREASE_U16_VALUES[(idx[0] as usize) % 16])
 }
 

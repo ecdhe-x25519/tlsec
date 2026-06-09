@@ -4,7 +4,7 @@ use crate::message::alert::AlertPayload;
 use crate::message::handshake::hello::cipher_suite::SupportedCipherSuite;
 use crate::message::handshake::messages::HandshakeMessage;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -29,27 +29,27 @@ impl Record {
         buf[len_pos..len_pos+2].copy_from_slice(&len.to_be_bytes());
     }
 
-    pub fn decode(buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, Error> {
+    pub fn decode(buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, TlsError> {
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
         
         let record_type: RecordType = RecordType::try_from(buf.get_u8())?;
 
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let legacy_version: Version = Version::try_from(buf.get_u16())?;
 
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let length: usize = buf.get_u16() as usize;
         
         if buf.remaining() < length {
-            return Err(Error::Incomplete(length - buf.remaining()));
+            return Err(TlsError::Incomplete(length - buf.remaining()));
         }
 
         let mut payload_buf: BytesMut = buf.split_to(length);
@@ -72,14 +72,14 @@ pub enum RecordType {
 }
 
 impl TryFrom<u8> for RecordType {
-    type Error = Error;
+    type Error = TlsError;
 
-    fn try_from(value: u8) -> Result<Self, Error> {
+    fn try_from(value: u8) -> Result<Self, TlsError> {
         match value {
             0x15 => Ok(Self::Alert),
             0x16 => Ok(Self::HandshakeMessage),
             0x17 => Ok(Self::ApplicationData),
-            _ => Err(Error::Unknown("record type")),
+            _ => Err(TlsError::Unknown("record type")),
         }
     }
 }
@@ -108,7 +108,7 @@ impl RecordPayload {
         }
     }
 
-    pub fn decode_payload(record_type: RecordType, buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, Error> {
+    pub fn decode_payload(record_type: RecordType, buf: &mut BytesMut, cipher_suite: Option<&SupportedCipherSuite>) -> Result<Self, TlsError> {
         match record_type {
             RecordType::HandshakeMessage => {
                 let mut msgs: Vec<HandshakeMessage> = Vec::new();

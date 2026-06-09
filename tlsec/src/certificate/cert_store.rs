@@ -13,12 +13,12 @@ pub struct CertStore {
 }
 
 impl CertStore {
-    pub fn parse_root_certs(root_dir: &str) -> Result<CertStore, Error> {
+    pub fn parse_root_certs(root_dir: &str) -> Result<CertStore, TlsError> {
         let mut certs: Vec<Der> = Vec::new();
 
-        for entry in fs::read_dir(root_dir).map_err(|e| Error::Io(format!("read directory error: {e}")))? {
+        for entry in fs::read_dir(root_dir).map_err(|e| TlsError::Io(format!("read directory error: {e}")))? {
             let entry = entry
-                .map_err(|e| Error::Io(format!("read entry error: {e}")))?;
+                .map_err(|e| TlsError::Io(format!("read entry error: {e}")))?;
             let path = entry.path();
 
             if !path.is_file() && !path.ends_with("pem") {
@@ -26,7 +26,7 @@ impl CertStore {
             }
 
             let data: Vec<u8> = fs::read(&path)
-                .map_err(|e| Error::Io(format!("read file error: {e}")))?;
+                .map_err(|e| TlsError::Io(format!("read file error: {e}")))?;
 
             if let Ok(pems) = parse_many(&data) {
                 for pem in pems {
@@ -41,17 +41,17 @@ impl CertStore {
         Ok(CertStore{certs})
     }
 
-    pub fn parse_third_party_pem(path: &str) -> Result<Der, Error> {
+    pub fn parse_third_party_pem(path: &str) -> Result<Der, TlsError> {
         let cert_string: String = fs::read_to_string(path)
-            .map_err(|e| Error::Io(format!("certificate read error: {e}")))?;
+            .map_err(|e| TlsError::Io(format!("certificate read error: {e}")))?;
 
         let pem_chain: Vec<Pem> = parse_many(cert_string)
-            .map_err(|e| Error::Io(format!("PEM parsing error: {e}")))?;
+            .map_err(|e| TlsError::Io(format!("PEM parsing error: {e}")))?;
 
         let pem: &Pem = &pem_chain[0];
 
         if pem.tag() != "CERTIFICATE" {
-            return Err(Error::Io("PEM tag missing".to_string()));
+            return Err(TlsError::Io("PEM tag missing".to_string()));
         }
 
         let cert: Vec<u8> = pem.contents().to_vec();

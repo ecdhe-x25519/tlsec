@@ -1,6 +1,6 @@
 use crate::message::serialize::Serialize;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -23,14 +23,14 @@ impl Serialize for CertificateAuthoritiesPayload {
         buf[len_pos..len_pos+2].copy_from_slice(&auth_len.to_be_bytes());
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let len: usize = buf.get_u16() as usize;
         if buf.remaining() < len {
-            return Err(Error::Incomplete(len - buf.remaining()));
+            return Err(TlsError::Incomplete(len - buf.remaining()));
         }
 
         let mut data: BytesMut = buf.split_to(len);
@@ -38,12 +38,12 @@ impl Serialize for CertificateAuthoritiesPayload {
         
         while data.remaining() > 0 {
             if data.remaining() < 2 {
-                return Err(Error::Incomplete(2 - data.remaining()));
+                return Err(TlsError::Incomplete(2 - data.remaining()));
             }
             
             let auth_len: usize = data.get_u16() as usize;
             if data.remaining() < auth_len {
-                return Err(Error::Incomplete(auth_len - data.remaining()));
+                return Err(TlsError::Incomplete(auth_len - data.remaining()));
             }
             
             let auth = data.split_to(auth_len).freeze();

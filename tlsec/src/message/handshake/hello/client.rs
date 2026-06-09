@@ -5,7 +5,7 @@ use crate::message::handshake::extension::Extension;
 use crate::message::handshake::hello::cipher_suite::CipherSuite;
 use crate::message::handshake::hello::compression_method::CompressionMethod;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -48,15 +48,15 @@ impl Serialize for ClientHelloPayload {
         buf[ext_len_pos..ext_len_pos+2].copy_from_slice(&ext_len.to_be_bytes());
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let legacy_version: Version = Version::try_from(buf.get_u16())?;
 
         if buf.remaining() < 32 {
-            return Err(Error::Incomplete(32 - buf.remaining()));
+            return Err(TlsError::Incomplete(32 - buf.remaining()));
         }
 
         let mut random_bytes: [u8; 32] = [0u8; 32];
@@ -64,27 +64,27 @@ impl Serialize for ClientHelloPayload {
         let random: [u8; 32] = random_bytes;
 
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
 
         let legacy_session_id_length: usize = buf.get_u8() as usize;
 
         if legacy_session_id_length > 32 {
-            return Err(Error::Alert(AlertDescription::HandshakeFailure));
+            return Err(TlsError::Alert(AlertDescription::HandshakeFailure));
         } else if buf.remaining() < legacy_session_id_length {
-            return Err(Error::Incomplete(legacy_session_id_length - buf.remaining()));
+            return Err(TlsError::Incomplete(legacy_session_id_length - buf.remaining()));
         }
 
         let legacy_session_id: Bytes = buf.split_to(legacy_session_id_length).freeze();
 
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let cipher_suites_length: usize = buf.get_u16() as usize;
 
         if buf.remaining() < cipher_suites_length {
-            return Err(Error::Incomplete(cipher_suites_length - buf.remaining()));
+            return Err(TlsError::Incomplete(cipher_suites_length - buf.remaining()));
         }
 
         let mut cipher_suites: Vec<CipherSuite> = Vec::new();
@@ -93,13 +93,13 @@ impl Serialize for ClientHelloPayload {
         }
 
         if buf.remaining() < 1 {
-            return Err(Error::Incomplete(1 - buf.remaining()));
+            return Err(TlsError::Incomplete(1 - buf.remaining()));
         }
 
         let legacy_compression_methods_length: usize = buf.get_u8() as usize;
 
         if buf.remaining() < legacy_compression_methods_length {
-            return Err(Error::Incomplete(legacy_compression_methods_length - buf.remaining()));
+            return Err(TlsError::Incomplete(legacy_compression_methods_length - buf.remaining()));
         }
 
         let mut legacy_compression_methods: Vec<CompressionMethod> = Vec::new();
@@ -108,13 +108,13 @@ impl Serialize for ClientHelloPayload {
         }
 
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let extensions_length: usize = buf.get_u16() as usize;
 
         if buf.remaining() < extensions_length {
-            return Err(Error::Incomplete(extensions_length - buf.remaining()));
+            return Err(TlsError::Incomplete(extensions_length - buf.remaining()));
         }
 
         let mut exts: BytesMut = buf.split_to(extensions_length);

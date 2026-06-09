@@ -2,7 +2,7 @@ use crate::message::serialize::Serialize;
 use crate::message::handshake::extensions::server::server::*;
 use crate::message::handshake::extensions::client::client::*;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -25,12 +25,12 @@ impl Serialize for Extension {
         buf[len_pos..len_pos+2].copy_from_slice(&len.to_be_bytes())
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         let extension_type: ExtensionType = ExtensionType::try_from(buf.get_u16())?;
         let length: usize = buf.get_u16() as usize;
 
         if buf.remaining() < length {
-            return Err(Error::Incomplete(length - buf.remaining()));
+            return Err(TlsError::Incomplete(length - buf.remaining()));
         }
 
         let mut data_buf: BytesMut = buf.split_to(length);
@@ -59,7 +59,7 @@ impl Into<u16> for ExtensionType {
 }
 
 impl TryFrom<u16> for ExtensionType {
-    type Error = Error;
+    type Error = TlsError;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         if let Ok(typ) = ServerExtensionType::try_from(value) {
@@ -70,7 +70,7 @@ impl TryFrom<u16> for ExtensionType {
             return Ok(ExtensionType::Client(typ));
         }
         
-        Err(Error::Unknown("extension type"))
+        Err(TlsError::Unknown("extension type"))
     }
 }
 
@@ -88,7 +88,7 @@ impl ExtensionPayload {
         }
     }
 
-    pub fn decode_payload(extension_type: ExtensionType, buf: &mut BytesMut) -> Result<Self, Error> {
+    pub fn decode_payload(extension_type: ExtensionType, buf: &mut BytesMut) -> Result<Self, TlsError> {
         match extension_type {
             ExtensionType::Client(z) => Ok(Self::Client(ClientExtensionPayload::decode_payload(z, buf)?)),
             ExtensionType::Server(z) => Ok(Self::Server(ServerExtensionPayload::decode_payload(z, buf)?)),

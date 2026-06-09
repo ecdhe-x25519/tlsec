@@ -9,19 +9,19 @@ use crate::message::version::SupportedVersion;
 use crate::net::state_machine::context::Context;
 use crate::net::state_machine::side::ClientSide;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
 pub fn handle_extensions_client(
     mut ctx: &mut Context<ClientSide>,
     exts: &[Extension]
-) -> Result<(), Error> {
+) -> Result<(), TlsError> {
     let mut version: Option<SupportedVersion> = None;
     let mut alpn_protocol: Option<AlpnProtocols> = None;
     let mut named_group: Option<SupportedNamedGroup> = None;
     let mut pbk: Option<Bytes> = None;
-    let mut error: Option<Error> = None;
+    let mut error: Option<TlsError> = None;
 
     for ext in exts {
         match &ext.payload {
@@ -66,7 +66,7 @@ pub fn handle_extensions_client(
                     _ => continue,
                 }
             }
-            _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage))
+            _ => return Err(TlsError::Alert(AlertDescription::UnexpectedMessage))
         };
     }
 
@@ -85,21 +85,21 @@ pub fn handle_extensions_client(
 fn handle_supported_versions(
     ext: &SupportedVersionsServer,
     ctx: &mut Context<ClientSide>
-) -> Result<SupportedVersion, Error> {
+) -> Result<SupportedVersion, TlsError> {
     for supported in &ctx.config.common.supported_versions {
         if let Some(v) = supported.compare(&ext.selected_version) {
             return Ok(v);
         }
     }
     
-    Err(Error::Alert(AlertDescription::ProtocolVersion))
+    Err(TlsError::Alert(AlertDescription::ProtocolVersion))
 }
 
 fn handle_alpn(
     ext: &AlpnPayload,
     ctx: &mut Context<ClientSide>
-) -> Result<AlpnProtocols, Error> {
-    let protocol: &AlpnProtocols = ctx.common.alpn_protocol.as_ref().ok_or(Error::Alert(AlertDescription::NoApplicationProtocol))?;
+) -> Result<AlpnProtocols, TlsError> {
+    let protocol: &AlpnProtocols = ctx.common.alpn_protocol.as_ref().ok_or(TlsError::Alert(AlertDescription::NoApplicationProtocol))?;
 
     for e in &ext.protocols {
         if &e.name == protocol {
@@ -107,31 +107,31 @@ fn handle_alpn(
         }
     };
 
-    Err(Error::Alert(AlertDescription::UnsupportedExtension))
+    Err(TlsError::Alert(AlertDescription::UnsupportedExtension))
 }
 
 fn handle_key_share(
     ext: &KeyShareServer,
     ctx: &mut Context<ClientSide>
-) -> Result<Bytes, Error> {
+) -> Result<Bytes, TlsError> {
     for supported in &ctx.config.common.supported_named_groups {
         if let Some(_) = supported.compare(&ext.server_share.group) {
             return Ok(ext.server_share.key_exchange.to_owned())
         }
     }
 
-    Err(Error::Alert(AlertDescription::HandshakeFailure))
+    Err(TlsError::Alert(AlertDescription::HandshakeFailure))
 }
 
 fn handle_key_share_hello_retry_request(
     ext: &KeyShareHelloRetryRequest,
     ctx: &mut Context<ClientSide>
-) -> Result<SupportedNamedGroup, Error> {
+) -> Result<SupportedNamedGroup, TlsError> {
     for supported in &ctx.config.common.supported_named_groups {
         if let Some(ng) = supported.compare(&ext.selected_group) {
             return Ok(ng)
         }
     }
 
-    Err(Error::Alert(AlertDescription::IllegalParameter))
+    Err(TlsError::Alert(AlertDescription::IllegalParameter))
 }

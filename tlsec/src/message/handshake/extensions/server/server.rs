@@ -4,7 +4,7 @@ use crate::message::handshake::extensions::server::key_share::KeyShareHelloRetry
 use crate::message::handshake::extensions::server::key_share::KeyShareServer;
 use crate::message::handshake::extensions::server::supported_versions::SupportedVersionsServer;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -18,7 +18,7 @@ pub enum ServerExtensionType {
 }
 
 impl TryFrom<u16> for ServerExtensionType {
-    type Error = Error;
+    type Error = TlsError;
     
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
@@ -26,7 +26,7 @@ impl TryFrom<u16> for ServerExtensionType {
             0x002B => Ok(Self::SupportedVersions),
             0xFF01 => Ok(Self::RenegotiationInfo),
             0x0010 => Ok(Self::ALPN),
-            _ => Err(Error::Unknown("extension type")),
+            _ => Err(TlsError::Unknown("extension type")),
         }
     }
 }
@@ -51,7 +51,7 @@ impl ServerExtensionPayload {
         }
     }
 
-    pub fn decode_payload(extension_type: ServerExtensionType, buf: &mut BytesMut) -> Result<Self, Error> {
+    pub fn decode_payload(extension_type: ServerExtensionType, buf: &mut BytesMut) -> Result<Self, TlsError> {
         match extension_type {
             ServerExtensionType::KeyShare => Ok(Self::KeyShareServer(KeyShareServer::decode(buf)?)),
             ServerExtensionType::SupportedVersions => Ok(Self::SupportedVersionsServer(SupportedVersionsServer::decode(buf)?)),

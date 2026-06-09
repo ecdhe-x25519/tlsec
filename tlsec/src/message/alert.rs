@@ -15,9 +15,9 @@ impl Serialize for AlertPayload {
         buf.put_u8(self.description as u8);
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
         
         let level: AlertLevel = AlertLevel::try_from(buf.get_u8())?;
@@ -38,13 +38,13 @@ pub enum AlertLevel {
 }
 
 impl TryFrom<u8> for AlertLevel {
-    type Error = Error;
+    type Error = TlsError;
     
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x01 => Ok(AlertLevel::Warning),
             0x02 => Ok(AlertLevel::Fatal),
-            _ => Err(Error::Unknown("alert level")),
+            _ => Err(TlsError::Unknown("alert level")),
         }
     }
 }
@@ -65,11 +65,11 @@ pub enum AlertDescription {
     IllegalParameter = 0x2F,
     UnknownCa = 0x30,
     AccessDenied = 0x31,
-    DecodeError = 0x32,
-    DecryptError = 0x33,
+    DecodeTlsError = 0x32,
+    DecryptTlsError = 0x33,
     ProtocolVersion = 0x46,
     InsufficientSecurity = 0x47,
-    InternalError = 0x50,
+    InternalTlsError = 0x50,
     InappropriateFallback = 0x56,
     UserCanceled = 0x5A,
     MissingExtension = 0x6D,
@@ -82,7 +82,7 @@ pub enum AlertDescription {
 }
 
 impl TryFrom<u8> for AlertDescription {
-    type Error = Error;
+    type Error = TlsError;
     
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -99,11 +99,11 @@ impl TryFrom<u8> for AlertDescription {
             0x2F => Ok(AlertDescription::IllegalParameter),
             0x30 => Ok(AlertDescription::UnknownCa),
             0x31 => Ok(AlertDescription::AccessDenied),
-            0x32 => Ok(AlertDescription::DecodeError),
-            0x33 => Ok(AlertDescription::DecryptError),
+            0x32 => Ok(AlertDescription::DecodeTlsError),
+            0x33 => Ok(AlertDescription::DecryptTlsError),
             0x46 => Ok(AlertDescription::ProtocolVersion),
             0x47 => Ok(AlertDescription::InsufficientSecurity),
-            0x50 => Ok(AlertDescription::InternalError),
+            0x50 => Ok(AlertDescription::InternalTlsError),
             0x56 => Ok(AlertDescription::InappropriateFallback),
             0x5A => Ok(AlertDescription::UserCanceled),
             0x6D => Ok(AlertDescription::MissingExtension),
@@ -113,7 +113,7 @@ impl TryFrom<u8> for AlertDescription {
             0x73 => Ok(AlertDescription::UnknownPskIdentity),
             0x74 => Ok(AlertDescription::CertificateRequired),
             0x78 => Ok(AlertDescription::NoApplicationProtocol),
-            _ => Err(Error::Unknown("alert description")),
+            _ => Err(TlsError::Unknown("alert description")),
         }
     }
 }

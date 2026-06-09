@@ -1,6 +1,6 @@
 use crate::message::serialize::Serialize;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -14,7 +14,7 @@ impl Serialize for EncryptedClientHelloPayload {
         buf.put_slice(&self.data);
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         let data: Bytes = buf.split_to(buf.remaining()).freeze();
         Ok(Self { data })
     }

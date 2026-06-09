@@ -2,7 +2,7 @@ use crate::message::handshake::grease::is_grease_u16;
 
 use crate::encryption::cipher_suite::{AnyCipher, TlsCipher};
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use ring::hkdf::{self, HKDF_SHA256, HKDF_SHA384};
 use ring::digest::{self, SHA256, SHA384};
@@ -19,7 +19,7 @@ pub enum CipherSuite {
 }
 
 impl TryFrom<u16> for CipherSuite {
-    type Error = Error;
+    type Error = TlsError;
     
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
@@ -31,7 +31,7 @@ impl TryFrom<u16> for CipherSuite {
             _ => if is_grease_u16(value) {
                 Ok(CipherSuite::Grease)
             } else {
-                Err(Error::Unknown("cipher suite"))
+                Err(TlsError::Unknown("cipher suite"))
             }
         }
     }
@@ -87,21 +87,21 @@ impl SupportedCipherSuite {
         }
     }
 
-    pub fn create_cipher(&self, key: Vec<u8>, iv: Vec<u8>) -> Result<AnyCipher, Error> {
+    pub fn create_cipher(&self, key: Vec<u8>, iv: Vec<u8>) -> Result<AnyCipher, TlsError> {
         match self {
             Self::ChaCha20 => {
-                let key_arr: [u8; 32] = key.try_into().map_err(|_| Error::Crypto("invalid key length".to_string()))?;
-                let iv_arr: [u8; 12] = iv.try_into().map_err(|_| Error::Crypto("invalid iv length".to_string()))?;
+                let key_arr: [u8; 32] = key.try_into().map_err(|_| TlsError::Crypto("invalid key length".to_string()))?;
+                let iv_arr: [u8; 12] = iv.try_into().map_err(|_| TlsError::Crypto("invalid iv length".to_string()))?;
                 Ok(AnyCipher::ChaCha20(TlsCipher::new(key_arr, iv_arr)))
             }
             Self::Aes128 => {
-                let key_arr: [u8; 16] = key.try_into().map_err(|_| Error::Crypto("invalid key length".to_string()))?;
-                let iv_arr: [u8; 12] = iv.try_into().map_err(|_| Error::Crypto("invalid iv length".to_string()))?;
+                let key_arr: [u8; 16] = key.try_into().map_err(|_| TlsError::Crypto("invalid key length".to_string()))?;
+                let iv_arr: [u8; 12] = iv.try_into().map_err(|_| TlsError::Crypto("invalid iv length".to_string()))?;
                 Ok(AnyCipher::Aes128(TlsCipher::new(key_arr, iv_arr)))
             }
             Self::Aes256 => {
-                let key_arr: [u8; 32] = key.try_into().map_err(|_| Error::Crypto("invalid key length".to_string()))?;
-                let iv_arr: [u8; 12] = iv.try_into().map_err(|_| Error::Crypto("invalid iv length".to_string()))?;
+                let key_arr: [u8; 32] = key.try_into().map_err(|_| TlsError::Crypto("invalid key length".to_string()))?;
+                let iv_arr: [u8; 12] = iv.try_into().map_err(|_| TlsError::Crypto("invalid iv length".to_string()))?;
                 Ok(AnyCipher::Aes256(TlsCipher::new(key_arr, iv_arr)))
             }
         }

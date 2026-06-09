@@ -15,7 +15,7 @@ use crate::net::state_machine::context::Context;
 use crate::net::state_machine::side::ServerSide;
 use crate::net::state_machine::state::{NextState, State};
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 pub struct ServerStart;
 
@@ -24,7 +24,7 @@ impl State<ServerSide> for ServerStart {
         self: Box<Self>,
         _ctx: &mut Context<ServerSide>,
         _msg: HandshakeMessage,
-    ) -> Result<NextState<ServerSide>, Error>
+    ) -> Result<NextState<ServerSide>, TlsError>
     {
         Ok(NextState::new(ExpectClientHello, None))
     }
@@ -37,11 +37,11 @@ impl State<ServerSide> for ExpectClientHello {
         self: Box<Self>,
         ctx: &mut Context<ServerSide>,
         msg: HandshakeMessage,
-    ) -> Result<NextState<ServerSide>, Error>
+    ) -> Result<NextState<ServerSide>, TlsError>
     {
         let client_hello: ClientHelloPayload = match msg.payload {
             HandshakePayload::Client(ClientHandshakePayload::ClientHello(ch)) => ch,
-            _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
+            _ => return Err(TlsError::Alert(AlertDescription::UnexpectedMessage)),
         };
 
         select_cipher_suites_server(ctx, &client_hello)?;
@@ -53,13 +53,13 @@ impl State<ServerSide> for ExpectClientHello {
         ctx.common.transcript.update(&msg.raw);
 
         let cs: &SupportedCipherSuite = &ctx.common.cipher_suite
-            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+            .ok_or(TlsError::Alert(AlertDescription::HandshakeFailure))?;
 
         let psk: &Vec<u8> = ctx.common.pre_shared_key.as_ref()
-            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+            .ok_or(TlsError::Alert(AlertDescription::HandshakeFailure))?;
 
         let shared_key: &Vec<u8> = ctx.common.shared_key.as_ref()
-            .ok_or(Error::Alert(AlertDescription::HandshakeFailure))?;
+            .ok_or(TlsError::Alert(AlertDescription::HandshakeFailure))?;
 
         let hs_keys: HandshakeKeys = HandshakeKeys::derive_handshake_keys(
             &cs,
@@ -86,15 +86,15 @@ impl State<ServerSide> for ExpectClientCertificate {
         self: Box<Self>,
         ctx: &mut Context<ServerSide>,
         msg: HandshakeMessage,
-    ) -> Result<NextState<ServerSide>, Error>
+    ) -> Result<NextState<ServerSide>, TlsError>
     {
         let client_certificate: CertificatePayload = match msg.payload {
             HandshakePayload::Client(ClientHandshakePayload::Certificate(ch)) => ch,
-            _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
+            _ => return Err(TlsError::Alert(AlertDescription::UnexpectedMessage)),
         };
 
         let cert_store: &&CertStore = &ctx.config.common.cert_root.as_ref()
-            .ok_or(Error::Alert(AlertDescription::CertificateUnknown))?;
+            .ok_or(TlsError::Alert(AlertDescription::CertificateUnknown))?;
 
         verify_certs_server(
             cert_store,
@@ -117,18 +117,18 @@ impl State<ServerSide> for ExpectClientCertificateVerify {
         self: Box<Self>,
         ctx: &mut Context<ServerSide>,
         msg: HandshakeMessage,
-    ) -> Result<NextState<ServerSide>, Error>
+    ) -> Result<NextState<ServerSide>, TlsError>
     {
         let client_certificate_verify: CertificateVerifyPayload = match msg.payload {
             HandshakePayload::Client(ClientHandshakePayload::CertificateVerify(ch)) => ch,
-            _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
+            _ => return Err(TlsError::Alert(AlertDescription::UnexpectedMessage)),
         };
 
         verify_certs(
             &self.certificate,
             &client_certificate_verify,
             &ctx.common.transcript.hash(),
-            &ctx.common.signature_scheme.ok_or(Error::Alert(AlertDescription::HandshakeFailure))?
+            &ctx.common.signature_scheme.ok_or(TlsError::Alert(AlertDescription::HandshakeFailure))?
         )?;
 
         ctx.common.transcript.update(&msg.raw);
@@ -144,11 +144,11 @@ impl State<ServerSide> for ExpectClientFinished {
         self: Box<Self>,
         ctx: &mut Context<ServerSide>,
         msg: HandshakeMessage,
-    ) -> Result<NextState<ServerSide>, Error>
+    ) -> Result<NextState<ServerSide>, TlsError>
     {
         let client_finished: FinishedPayload = match msg.payload {
             HandshakePayload::Common(CommonHandshakePayload::Finished(ch)) => ch,
-            _ => return Err(Error::Alert(AlertDescription::UnexpectedMessage)),
+            _ => return Err(TlsError::Alert(AlertDescription::UnexpectedMessage)),
         };
 
         ctx.common.transcript.update(&msg.raw);
@@ -157,7 +157,7 @@ impl State<ServerSide> for ExpectClientFinished {
             return Ok(NextState::new(ServerConnected, None))
         }
 
-        Err(Error::Alert(AlertDescription::HandshakeFailure))
+        Err(TlsError::Alert(AlertDescription::HandshakeFailure))
     }
 }
 
@@ -168,8 +168,8 @@ impl State<ServerSide> for ServerConnected {
         self: Box<Self>,
         _ctx: &mut Context<ServerSide>,
         _msg: HandshakeMessage,
-    ) -> Result<NextState<ServerSide>, Error>
+    ) -> Result<NextState<ServerSide>, TlsError>
     {
-        Err(Error::Alert(AlertDescription::UnexpectedMessage))
+        Err(TlsError::Alert(AlertDescription::UnexpectedMessage))
     }
 }

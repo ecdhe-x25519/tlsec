@@ -1,7 +1,7 @@
 use crate::message::serialize::Serialize;
 use crate::message::handshake::extension::Extension;
 
-use crate::error::Error;
+use crate::error::TlsError;
 
 use bytes::*;
 
@@ -23,15 +23,15 @@ impl Serialize for EncryptedExtensionsPayload {
         buf[len_pos..len_pos+2].copy_from_slice(&len.to_be_bytes());
     }
 
-    fn decode(buf: &mut BytesMut) -> Result<Self, Error> {
+    fn decode(buf: &mut BytesMut) -> Result<Self, TlsError> {
         if buf.remaining() < 2 {
-            return Err(Error::Incomplete(2 - buf.remaining()));
+            return Err(TlsError::Incomplete(2 - buf.remaining()));
         }
 
         let length: usize = buf.get_u16() as usize;
 
         if buf.remaining() < length {
-            return Err(Error::Incomplete(length - buf.remaining()));
+            return Err(TlsError::Incomplete(length - buf.remaining()));
         }
 
         let mut ext_buf: BytesMut = buf.split_to(length);
