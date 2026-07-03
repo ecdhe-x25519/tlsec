@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.70%2B-blue.svg)](https://www.rust-lang.org/)
 
-> **Status:** Almost ready. I'm tired of this shit.
+> **Status:** Almost done. Testing with OpenSSL.
 
 `tlsec` is a pure Rust implementation of the TLS 1.3 protocol with a focus on flexibility, performance, and deep customization. It aims to give you full control over the handshake process, from the `ClientHello` to the final `Finished` message, while also supporting modern features like kernel TLS (kTLS).
 
