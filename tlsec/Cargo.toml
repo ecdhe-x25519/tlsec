@@ -1,0 +1,18 @@
+[package]
+name = "tlsec"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bytes = "1.11.1"
+ring = "0.17.14"
+webpki = { version = "0.22.4", features = ["std"] }
+pem = "3.0.6"
+flate2 = { version = "1.1.9", default-features = false, features = ["zlib-rs"] }
+brotli = "8.0.2"
+libc = "0.2.186"
+brevno = { path = "../brevno" }
+
+[dev-dependencies]
+venus = { path = "../venus" }
+tokio = { version = "1.52.3", features = ["full"] }
