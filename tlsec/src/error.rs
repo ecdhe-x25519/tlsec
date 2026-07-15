@@ -8,12 +8,12 @@ pub type TlsResult<T> = Result<T, TlsError>;
 
 #[derive(Debug)]
 pub enum TlsError {
-    Unknown(&'static str),
-    Unsupported(&'static str),
+    Unknown,
+    Unsupported,
     Alert(AlertDescription),
     Incomplete(usize),
-    Crypto(String),
-    Io(String),
+    Crypto,
+    Io,
 }
 
 impl fmt::Display for TlsError {
